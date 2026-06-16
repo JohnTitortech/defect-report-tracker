@@ -15,9 +15,13 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     // Handle redirect result after Google login returns to the page
-    getRedirectResult(auth).catch(err => {
-      console.error('Redirect result error:', err)
-    })
+    getRedirectResult(auth)
+      .then(result => {
+        console.log("REDIRECT RESULT:", result)
+      })
+      .catch(err => {
+        console.error("REDIRECT ERROR:", err)
+      })
 
     const unsub = onAuthStateChanged(auth, u => {
       console.log("AUTH STATE:", u)
