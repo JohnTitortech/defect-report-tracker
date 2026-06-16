@@ -20,6 +20,8 @@ export function AuthProvider({ children }) {
     })
 
     const unsub = onAuthStateChanged(auth, u => {
+      console.log("AUTH STATE:", u)
+
       setUser(u)
       setLoading(false)
     })
