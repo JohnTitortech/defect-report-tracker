@@ -5,6 +5,7 @@ import {
   signOut,
 } from 'firebase/auth'
 import { auth, googleProvider } from '../lib/firebase'
+import { getUserRole } from '../lib/roles'
 
 const AuthContext = createContext(null)
 
@@ -13,11 +14,28 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const unsub = onAuthStateChanged(auth, u => {
+    const unsub = onAuthStateChanged(auth, async (u) => {
       console.log("AUTH STATE:", u)
-      setUser(u)
+  
+      if (!u) {
+        setUser(null)
+        setLoading(false)
+        return
+      }
+  
+      const role = await getUserRole(u.email)
+  
+      setUser({
+        uid: u.uid,
+        email: u.email,
+        displayName: u.displayName,
+        photoURL: u.photoURL,
+        role,
+      })
+  
       setLoading(false)
     })
+  
     return unsub
   }, [])
 
