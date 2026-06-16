@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Defect Report Tracker</title>
+    <script>
+      // GitHub Pages SPA redirect trick
+      // Converts /defect-report-tracker/login → /defect-report-tracker/?p=/login
+      var repo = '/defect-report-tracker';
+      var path = window.location.pathname.replace(repo, '') || '/';
+      var search = window.location.search;
+      var hash = window.location.hash;
+      var redirectUrl = repo + '/?p=' + encodeURIComponent(path + search) + hash;
+      window.location.replace(redirectUrl);
+    </script>
+  </head>
+  <body></body>
+</html>
