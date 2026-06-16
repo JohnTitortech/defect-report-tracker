@@ -1,0 +1,68 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Custom utility classes ───────────────────────────────────────────────── */
+@layer components {
+
+  /* Buttons */
+  .btn-primary {
+    @apply px-4 py-2 bg-accent hover:bg-blue-700 text-white text-sm font-semibold
+           rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-accent/40;
+  }
+
+  .btn-ghost {
+    @apply px-4 py-2 bg-transparent hover:bg-steel-100 dark:hover:bg-steel-800
+           text-steel-700 dark:text-steel-300 text-sm font-medium
+           rounded-lg transition-colors border border-steel-200 dark:border-steel-700
+           focus:outline-none focus:ring-2 focus:ring-steel-300;
+  }
+
+  .icon-btn {
+    @apply p-2 rounded-lg text-steel-500 dark:text-steel-400
+           hover:bg-steel-100 dark:hover:bg-steel-800
+           hover:text-steel-800 dark:hover:text-steel-200
+           transition-colors focus:outline-none focus:ring-2 focus:ring-steel-300;
+  }
+
+  /* Form fields */
+  .field-label {
+    @apply block text-xs font-semibold uppercase tracking-wider text-steel-500 dark:text-steel-400 mb-1.5;
+  }
+
+  .field-input {
+    @apply w-full px-3 py-2 text-sm bg-steel-50 dark:bg-steel-800
+           border border-steel-200 dark:border-steel-700 rounded-lg
+           text-steel-900 dark:text-steel-100 placeholder-steel-400
+           focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent
+           transition-all;
+  }
+}
+
+/* ── Cropper overrides ────────────────────────────────────────────────────── */
+.cropper-container {
+  max-height: 360px !important;
+}
+
+/* ── Scrollbar styling ────────────────────────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #ced4da;
+  border-radius: 99px;
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: #495057;
+}
+
+/* ── Print styles ─────────────────────────────────────────────────────────── */
+@media print {
+  header, .icon-btn, button { display: none !important; }
+  table { page-break-inside: auto; }
+  tr    { page-break-inside: avoid; page-break-after: auto; }
+}
