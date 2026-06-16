@@ -13,6 +13,7 @@ const COL = 'reports'
 export async function createReport(data) {
   return addDoc(collection(db, COL), {
     unitNo:           data.unitNo           || '',
+    problem:          data.problem          || '',
     cause:            data.cause            || '',
     countermeasure:   data.countermeasure   || '',
     progress:         data.progress         ?? 0,
