@@ -18,9 +18,6 @@ export default function ReportModal({ report = null, user, onSave, onClose }) {
     user?.role === 'QC' ||
     user?.role === 'MASTER'
   
-  const isAssy =
-    user?.role === 'ASSY'
-  
   const isEdit = !!report
   const [form, setForm]       = useState(isEdit ? { ...report } : { ...EMPTY })
   const [showImages, setShowImages] = useState(false)
@@ -29,7 +26,7 @@ export default function ReportModal({ report = null, user, onSave, onClose }) {
   const set = (key, val) => setForm(f => ({ ...f, [key]: val }))
 
   const handleSubmit = async (e) => {
-    e.preventDefault()
+    e?.preventDefault()
     if (!form.unitNo.trim()) return
     setSaving(true)
     await onSave(form)
@@ -77,7 +74,12 @@ export default function ReportModal({ report = null, user, onSave, onClose }) {
               <div className="flex items-center gap-3 flex-wrap">
                 <button
                   type="button"
-                  onClick={() => setShowImages(true)}
+                  disabled={!isQC}
+                  onClick={() => {
+                    if (isQC) {
+                      setShowImages(true)
+                    }
+                  }}
                   className="btn-ghost flex items-center gap-2"
                 >
                   <Camera className="w-4 h-4" />
@@ -113,6 +115,7 @@ export default function ReportModal({ report = null, user, onSave, onClose }) {
                 className="field-input"
                 rows={3}
                 value={form.problem}
+                disabled={!isQC}
                 onChange={e => set('problem', e.target.value)}
                 placeholder="Describe the problem"
               />
@@ -158,6 +161,7 @@ export default function ReportModal({ report = null, user, onSave, onClose }) {
           <div className="px-6 py-4 border-t border-steel-200 dark:border-steel-700 flex justify-end gap-3">
             <button type="button" onClick={onClose} className="btn-ghost">Cancel</button>
             <button
+              type="button"
               onClick={handleSubmit}
               disabled={!form.unitNo.trim() || saving}
               className="btn-primary disabled:opacity-50"
