@@ -12,7 +12,15 @@ const EMPTY = {
   layoutType: null, positionImageUrl: null, detailImageUrl: null,
 }
 
-export default function ReportModal({ report = null, onSave, onClose }) {
+export default function ReportModal({ report = null, user, onSave, onClose }) {
+
+  const isQC =
+    user?.role === 'QC' ||
+    user?.role === 'MASTER'
+  
+  const isAssy =
+    user?.role === 'ASSY'
+  
   const isEdit = !!report
   const [form, setForm]       = useState(isEdit ? { ...report } : { ...EMPTY })
   const [showImages, setShowImages] = useState(false)
