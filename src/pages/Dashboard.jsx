@@ -229,6 +229,7 @@ export default function Dashboard() {
       {modal && (
         <ReportModal
           report={modal === 'add' ? null : modal}
+          user={user}
           onSave={handleSave}
           onClose={() => setModal(null)}
         />
