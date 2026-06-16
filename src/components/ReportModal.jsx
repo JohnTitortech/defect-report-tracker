@@ -7,7 +7,7 @@ import QuadrantProgress from './QuadrantProgress'
 import ImageUploader from './ImageUploader'
 
 const EMPTY = {
-  unitNo: '', cause: '', countermeasure: '',
+  unitNo: '', problem: '', cause: '', countermeasure: '',
   progress: 0, verification: 0,
   layoutType: null, positionImageUrl: null, detailImageUrl: null,
 }
@@ -95,6 +95,21 @@ export default function ReportModal({ report = null, onSave, onClose }) {
               </div>
             </div>
 
+            {/* Problem */}
+            <div>
+              <label className="field-label">
+                Problem
+              </label>
+            
+              <textarea
+                className="field-input"
+                rows={3}
+                value={form.problem}
+                onChange={e => set('problem', e.target.value)}
+                placeholder="Describe the problem"
+              />
+            </div>
+            
             {/* Cause */}
             <div>
               <label className="field-label">Cause</label>
