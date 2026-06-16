@@ -14,21 +14,22 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Handle redirect result after Google login returns to the page
     getRedirectResult(auth)
       .then(result => {
         console.log("REDIRECT RESULT:", result)
+        console.log("CURRENT USER:", auth.currentUser)
       })
       .catch(err => {
         console.error("REDIRECT ERROR:", err)
       })
-
+  
     const unsub = onAuthStateChanged(auth, u => {
       console.log("AUTH STATE:", u)
-
+  
       setUser(u)
       setLoading(false)
     })
+  
     return unsub
   }, [])
 
