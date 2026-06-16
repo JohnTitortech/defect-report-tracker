@@ -9,8 +9,19 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
-    <!-- Cropper CSS served locally — avoids Edge Tracking Prevention block -->
     <link rel="stylesheet" href="/cropper.min.css" />
+    <script>
+      // Restore path from 404.html redirect (GitHub Pages SPA fix)
+      (function() {
+        var p = new URLSearchParams(window.location.search).get('p');
+        if (p) {
+          window.history.replaceState(
+            null, '',
+            window.location.pathname + decodeURIComponent(p) + window.location.hash
+          );
+        }
+      })();
+    </script>
   </head>
   <body class="antialiased">
     <div id="root"></div>
