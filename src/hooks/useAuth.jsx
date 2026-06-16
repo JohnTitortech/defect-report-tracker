@@ -2,7 +2,6 @@ import { createContext, useContext, useEffect, useState } from 'react'
 import {
   onAuthStateChanged,
   signInWithRedirect,
-  getRedirectResult,
   signOut,
 } from 'firebase/auth'
 import { auth, googleProvider } from '../lib/firebase'
@@ -34,7 +33,13 @@ export function AuthProvider({ children }) {
   }, [])
 
   // Redirects browser to Google login page — avoids popup COOP issue
-  const signIn = () => signInWithRedirect(auth, googleProvider)
+  import {
+    onAuthStateChanged,
+    signInWithPopup,
+    signOut,
+  } from 'firebase/auth'
+  
+  const signIn = () => signInWithPopup(auth, googleProvider)
   const logOut = () => signOut(auth)
 
   return (
