@@ -15,9 +15,11 @@ function todayStr() {
   return `${yyyy}-${mm}-${dd}`
 }
 
+const RESPONSIBLE_OPTS = ['Process', 'Design', 'Supplier']
+
 const EMPTY = {
   date: todayStr(),
-  unitNo: '', problem: '', qty: 1, cause: '', countermeasure: '',
+  unitNo: '', problem: '', qty: 1, responsible: [], cause: '', countermeasure: '',
   progress: 0, verification: 0,
   layoutType: null, positionImageUrl: null, detailImageUrl: null,
 }
@@ -29,7 +31,7 @@ export default function ReportModal({ report = null, user, onSave, onClose }) {
     user?.role === 'MASTER'
   
   const isEdit = !!report
-  const [form, setForm]       = useState(isEdit ? { date: report.date || todayStr(), qty: report.qty ?? 1, ...report } : { ...EMPTY })
+  const [form, setForm]       = useState(isEdit ? { date: report.date || todayStr(), qty: report.qty ?? 1, responsible: report.responsible || [], ...report } : { ...EMPTY })
   const [showImages, setShowImages] = useState(false)
   const [saving, setSaving]   = useState(false)
 
@@ -155,6 +157,43 @@ export default function ReportModal({ report = null, user, onSave, onClose }) {
                   <option key={n} value={n}>{n}</option>
                 ))}
               </select>
+            </div>
+
+            {/* Responsible (multi-select) */}
+            <div>
+              <label className="field-label">Responsible</label>
+              <div className="flex items-center gap-2 flex-wrap mt-1">
+                {RESPONSIBLE_OPTS.map(opt => {
+                  const isActive = (form.responsible || []).includes(opt)
+                  return (
+                    <button
+                      key={opt}
+                      type="button"
+                      onClick={() => {
+                        const current = form.responsible || []
+                        const next = isActive
+                          ? current.filter(r => r !== opt)
+                          : [...current, opt]
+                        set('responsible', next)
+                      }}
+                      className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-all
+                        ${isActive
+                          ? opt === 'Process'
+                            ? 'bg-blue-500 border-blue-500 text-white'
+                            : opt === 'Design'
+                            ? 'bg-violet-500 border-violet-500 text-white'
+                            : 'bg-amber-500 border-amber-500 text-white'
+                          : 'bg-steel-50 dark:bg-steel-800 border-steel-200 dark:border-steel-700 text-steel-600 dark:text-steel-300 hover:border-steel-400 dark:hover:border-steel-500'
+                        }`}
+                    >
+                      {opt}
+                    </button>
+                  )
+                })}
+              </div>
+              {(form.responsible || []).length === 0 && (
+                <p className="text-xs text-steel-400 mt-1.5">Pilih satu atau lebih pihak yang bertanggung jawab</p>
+              )}
             </div>
             
             {/* Cause */}
