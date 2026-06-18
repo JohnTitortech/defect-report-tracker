@@ -4,9 +4,9 @@
  *
  * Includes:
  *  - Position/detail photos (fetched from Cloudinary and embedded as real images)
- *  - Quadrant progress circles, re-drawn on a <canvas> as PNG (jsPDF cannot
- *    render the React/SVG <QuadrantProgress> component, so we recreate the
- *    same visual using the Canvas API and embed the resulting bitmap).
+ *  - Quadrant progress circles, redrawn as native PDF vector paths (jsPDF
+ *    cannot render the React/SVG <QuadrantProgress> component directly, so
+ *    we recreate the same visual using jsPDF's context2d drawing API)
  */
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
@@ -14,27 +14,19 @@ import { formatDate, formatDateTime } from './db'
 
 const PERCENT = ['0%', '25%', '50%', '75%', '100%']
 
-// ── Quadrant progress icon (canvas → PNG dataURL), cached per value (0-4) ────
-let _progressIconCache = null
-function getProgressIcons() {
-  if (_progressIconCache) return _progressIconCache
-  _progressIconCache = [0, 1, 2, 3, 4].map(drawProgressCircle)
-  return _progressIconCache
-}
-
-function drawProgressCircle(value, px = 160) {
-  const canvas = document.createElement('canvas')
-  canvas.width = px
-  canvas.height = px
-  const ctx = canvas.getContext('2d')
-  const cx = px / 2, cy = px / 2, r = px * 0.45
+// ── Quadrant progress icon, drawn as native PDF vector paths ────────────────
+// (A rasterized canvas→PNG was tried first but produced a pixelated/noisy
+// blob once shrunk down to cell size in the PDF viewer. Drawing directly via
+// jsPDF's context2d keeps it crisp at any zoom level.)
+function drawProgressIcon(doc, value, cx, cy, r) {
+  const ctx = doc.context2d
 
   // Background circle
   ctx.beginPath()
   ctx.arc(cx, cy, r, 0, Math.PI * 2)
   ctx.fillStyle = '#ffffff'
   ctx.fill()
-  ctx.lineWidth = px * 0.025
+  ctx.lineWidth = r * 0.05
   ctx.strokeStyle = '#d1d5db'
   ctx.stroke()
 
@@ -54,7 +46,7 @@ function drawProgressCircle(value, px = 160) {
 
   // Grid divider lines
   ctx.strokeStyle = '#d1d5db'
-  ctx.lineWidth = px * 0.018
+  ctx.lineWidth = r * 0.035
   ctx.beginPath()
   ctx.moveTo(cx, cy - r); ctx.lineTo(cx, cy + r)
   ctx.moveTo(cx - r, cy); ctx.lineTo(cx + r, cy)
@@ -64,10 +56,8 @@ function drawProgressCircle(value, px = 160) {
   ctx.beginPath()
   ctx.arc(cx, cy, r, 0, Math.PI * 2)
   ctx.strokeStyle = '#9ca3af'
-  ctx.lineWidth = px * 0.025
+  ctx.lineWidth = r * 0.05
   ctx.stroke()
-
-  return canvas.toDataURL('image/png')
 }
 
 // ── Remote image (Cloudinary URL) → embeddable image data ───────────────────
@@ -132,8 +122,7 @@ export async function exportToPDF(reports) {
   doc.setFontSize(8)
   doc.text(`Generated: ${new Date().toLocaleString('en-GB')}`, 230, 12)
 
-  // ── Pre-load assets (must happen before autoTable draws anything) ──────────
-  const progressIcons = getProgressIcons()
+  // ── Pre-load images (must happen before autoTable draws anything) ──────────
   const images = await Promise.all(
     reports.map(r => Promise.all([loadImage(r.positionImageUrl), loadImage(r.detailImageUrl)]))
   )
@@ -171,14 +160,9 @@ export async function exportToPDF(reports) {
     bodyStyles: { fontSize: 7, cellPadding: 2 },
     columnStyles: {
       0: { cellWidth: 8,  halign: 'center' },
-      1: { cellWidth: 20 },
       2: { cellWidth: 36 },
-      3: { cellWidth: 46 },
-      4: { cellWidth: 46 },
-      5: { cellWidth: 18, halign: 'center' },
-      6: { cellWidth: 18, halign: 'center' },
-      7: { cellWidth: 22 },
-      8: { cellWidth: 28 },
+      5: { cellWidth: 20, halign: 'center' },
+      6: { cellWidth: 20, halign: 'center' },
     },
     alternateRowStyles: { fillColor: [245, 247, 250] },
     margin: { left: 14, right: 14 },
@@ -212,13 +196,14 @@ export async function exportToPDF(reports) {
       if (column.index === 5 || column.index === 6) {
         const field = column.index === 5 ? 'progress' : 'verification'
         const v = Math.min(4, Math.max(0, report[field] ?? 0))
-        const size = Math.min(cell.width, cell.height - 5) - 4
-        const dx = cell.x + (cell.width - size) / 2
-        const dy = cell.y + pad
-        doc.addImage(progressIcons[v], 'PNG', dx, dy, size, size)
+        const labelH = 4 // space reserved for the "75%" label below the circle
+        const r = Math.min(cell.width, cell.height - labelH) / 2 - 1.5
+        const cx = cell.x + cell.width / 2
+        const cy = cell.y + pad + r
+        drawProgressIcon(doc, v, cx, cy, r)
         doc.setFontSize(6)
         doc.setTextColor(100)
-        doc.text(PERCENT[v], cell.x + cell.width / 2, cell.y + cell.height - 1.5, { align: 'center' })
+        doc.text(PERCENT[v], cx, cell.y + cell.height - 1.5, { align: 'center' })
       }
     },
   })
