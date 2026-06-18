@@ -6,8 +6,18 @@ import { X, ImageIcon, Camera } from 'lucide-react'
 import QuadrantProgress from './QuadrantProgress'
 import ImageUploader from './ImageUploader'
 
+// Helper: returns today's date as YYYY-MM-DD string (local time)
+function todayStr() {
+  const d = new Date()
+  const yyyy = d.getFullYear()
+  const mm   = String(d.getMonth() + 1).padStart(2, '0')
+  const dd   = String(d.getDate()).padStart(2, '0')
+  return `${yyyy}-${mm}-${dd}`
+}
+
 const EMPTY = {
-  unitNo: '', problem: '', cause: '', countermeasure: '',
+  date: todayStr(),
+  unitNo: '', problem: '', qty: 1, cause: '', countermeasure: '',
   progress: 0, verification: 0,
   layoutType: null, positionImageUrl: null, detailImageUrl: null,
 }
@@ -19,7 +29,7 @@ export default function ReportModal({ report = null, user, onSave, onClose }) {
     user?.role === 'MASTER'
   
   const isEdit = !!report
-  const [form, setForm]       = useState(isEdit ? { ...report } : { ...EMPTY })
+  const [form, setForm]       = useState(isEdit ? { date: report.date || todayStr(), qty: report.qty ?? 1, ...report } : { ...EMPTY })
   const [showImages, setShowImages] = useState(false)
   const [saving, setSaving]   = useState(false)
 
@@ -53,6 +63,18 @@ export default function ReportModal({ report = null, user, onSave, onClose }) {
           </div>
 
           <form onSubmit={handleSubmit} className="p-6 space-y-5 max-h-[75vh] overflow-y-auto">
+
+            {/* Date */}
+            <div>
+              <label className="field-label">Date *</label>
+              <input
+                type="date"
+                className="field-input"
+                value={form.date || ''}
+                onChange={e => set('date', e.target.value)}
+                required
+              />
+            </div>
 
             {/* Unit Number */}
             <div>
@@ -119,6 +141,20 @@ export default function ReportModal({ report = null, user, onSave, onClose }) {
                 onChange={e => set('problem', e.target.value)}
                 placeholder="Describe the problem"
               />
+            </div>
+
+            {/* Qty */}
+            <div>
+              <label className="field-label">Qty</label>
+              <select
+                className="field-input"
+                value={form.qty ?? 1}
+                onChange={e => set('qty', Number(e.target.value))}
+              >
+                {Array.from({ length: 20 }, (_, i) => i + 1).map(n => (
+                  <option key={n} value={n}>{n}</option>
+                ))}
+              </select>
             </div>
             
             {/* Cause */}
