@@ -1,66 +1,13 @@
 /**
  * Export selected defect reports to an A4 landscape PDF.
- * Uses jsPDF + jspdf-autotable.
- *
- * Includes:
- *  - Position/detail photos (fetched from Cloudinary and embedded as real images)
- *  - Quadrant progress circles, redrawn as native PDF vector paths (jsPDF
- *    cannot render the React/SVG <QuadrantProgress> component directly, so
- *    we recreate the same visual using jsPDF's context2d drawing API)
+ * Layout matches the reference sheet:
+ *   No | Unit | Date | Problem | Image | Qty | Design | Process | Supplier | Cause & C/M
  */
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
-import { formatDate, formatDateTime } from './db'
+import { formatDate } from './db'
 
-const PERCENT = ['0%', '25%', '50%', '75%', '100%']
-
-// ── Quadrant progress icon, drawn as native PDF vector paths ────────────────
-// (A rasterized canvas→PNG was tried first but produced a pixelated/noisy
-// blob once shrunk down to cell size in the PDF viewer. Drawing directly via
-// jsPDF's context2d keeps it crisp at any zoom level.)
-function drawProgressIcon(doc, value, cx, cy, r) {
-  const ctx = doc.context2d
-
-  // Background circle
-  ctx.beginPath()
-  ctx.arc(cx, cy, r, 0, Math.PI * 2)
-  ctx.fillStyle = '#ffffff'
-  ctx.fill()
-  ctx.lineWidth = r * 0.05
-  ctx.strokeStyle = '#d1d5db'
-  ctx.stroke()
-
-  // Filled quadrants (clockwise from top, same order as QuadrantProgress.jsx)
-  for (let i = 0; i < 4; i++) {
-    if (i < value) {
-      const start = -Math.PI / 2 + i * (Math.PI / 2)
-      const end = start + Math.PI / 2
-      ctx.beginPath()
-      ctx.moveTo(cx, cy)
-      ctx.arc(cx, cy, r, start, end)
-      ctx.closePath()
-      ctx.fillStyle = '#111827'
-      ctx.fill()
-    }
-  }
-
-  // Grid divider lines
-  ctx.strokeStyle = '#d1d5db'
-  ctx.lineWidth = r * 0.035
-  ctx.beginPath()
-  ctx.moveTo(cx, cy - r); ctx.lineTo(cx, cy + r)
-  ctx.moveTo(cx - r, cy); ctx.lineTo(cx + r, cy)
-  ctx.stroke()
-
-  // Outer ring
-  ctx.beginPath()
-  ctx.arc(cx, cy, r, 0, Math.PI * 2)
-  ctx.strokeStyle = '#9ca3af'
-  ctx.lineWidth = r * 0.05
-  ctx.stroke()
-}
-
-// ── Remote image (Cloudinary URL) → embeddable image data ───────────────────
+// ── Remote image → embeddable data ──────────────────────────────────────────
 async function loadImage(url) {
   if (!url) return null
   try {
@@ -78,7 +25,7 @@ async function loadImage(url) {
     if (format === 'JPG') format = 'JPEG'
     return { dataUrl, width, height, format }
   } catch (err) {
-    console.warn('exportToPDF: gagal memuat gambar untuk PDF:', url, err)
+    console.warn('exportToPDF: failed to load image:', url, err)
     return null
   }
 }
@@ -92,7 +39,7 @@ function getImageDims(dataUrl) {
   })
 }
 
-// Draw an image centered + "object-fit: contain" inside a box
+// Draw image centered + object-fit:contain inside a box
 function drawContained(doc, img, x, y, boxW, boxH) {
   if (!img) return
   const ratio = Math.min(boxW / img.width, boxH / img.height)
@@ -101,71 +48,147 @@ function drawContained(doc, img, x, y, boxW, boxH) {
   try {
     doc.addImage(img.dataUrl, img.format, x + (boxW - w) / 2, y + (boxH - h) / 2, w, h)
   } catch (err) {
-    console.warn('exportToPDF: gagal menambahkan gambar ke PDF:', err)
+    console.warn('exportToPDF: failed to add image:', err)
   }
 }
 
 /**
- * @param {Array} reports  Array of report objects to export
+ * @param {Array} reports
  */
 export async function exportToPDF(reports) {
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
+  const PAGE_W = 297
+  const MARGIN = 8
 
-  // ── Header ─────────────────────────────────────────────────────────────────
-  doc.setFillColor(30, 30, 30)
-  doc.rect(0, 0, 297, 18, 'F')
+  // ── Title header ────────────────────────────────────────────────────────────
+  doc.setFillColor(28, 28, 28)
+  doc.rect(0, 0, PAGE_W, 14, 'F')
   doc.setTextColor(255, 255, 255)
   doc.setFont('helvetica', 'bold')
-  doc.setFontSize(13)
-  doc.text('DEFECT REPORT TRACKER', 14, 12)
+  doc.setFontSize(11)
+  doc.text('DEFECT REPORT', MARGIN, 9)
   doc.setFont('helvetica', 'normal')
-  doc.setFontSize(8)
-  doc.text(`Generated: ${new Date().toLocaleString('en-GB')}`, 230, 12)
+  doc.setFontSize(7)
+  doc.text(`Generated: ${new Date().toLocaleString('en-GB')}`, PAGE_W - MARGIN, 9, { align: 'right' })
 
-  // ── Pre-load images (must happen before autoTable draws anything) ──────────
+  // ── Pre-load images ──────────────────────────────────────────────────────────
   const images = await Promise.all(
     reports.map(r => Promise.all([loadImage(r.positionImageUrl), loadImage(r.detailImageUrl)]))
   )
 
-  // ── Table ──────────────────────────────────────────────────────────────────
+  // Column widths (total ~ PAGE_W - 2*MARGIN = 281)
+  // No | Unit | Date | Problem | Image | Qty | Design | Process | Supplier | Analyze/CM
+  const COL = {
+    no:       6,
+    unit:     10,
+    date:     18,
+    problem:  38,
+    image:    38,
+    qty:      8,
+    design:   14,
+    process:  14,
+    supplier: 14,
+    analyze:  0, // fill remaining
+  }
+  const fixedW = COL.no + COL.unit + COL.date + COL.problem + COL.image + COL.qty + COL.design + COL.process + COL.supplier
+  COL.analyze = (PAGE_W - MARGIN * 2) - fixedW
+
+  // Row data — images & responsible drawn in didDrawCell
   const rows = reports.map((r, i) => [
     i + 1,
     r.unitNo || '—',
-    '',                 // Images — drawn manually in didDrawCell
-    r.cause        || '—',
-    r.countermeasure || '—',
-    '',                 // Progress — drawn manually in didDrawCell
-    '',                 // Verification — drawn manually in didDrawCell
-    formatDate(r.createdAt),
-    formatDateTime(r.updatedAt),
+    r.date ? formatDate({ seconds: undefined, _date: r.date }) : '—',
+    r.problem || '—',
+    '',   // image (drawn in didDrawCell)
+    r.qty ?? 1,
+    '',   // Design
+    '',   // Process
+    '',   // Supplier
+    '',   // Analyze/CM (drawn in didDrawCell)
   ])
 
+  // Helper to format date from raw YYYY-MM-DD string OR Firestore ts
+  function fmtDate(r) {
+    if (r.date && typeof r.date === 'string') {
+      // parse YYYY-MM-DD
+      const [y, m, d] = r.date.split('-')
+      return `${d}/${m}/${y}`
+    }
+    return formatDate(r.createdAt)
+  }
+
+  // Re-build rows with correct date
+  const bodyRows = reports.map((r, i) => [
+    i + 1,
+    r.unitNo || '—',
+    fmtDate(r),
+    r.problem || '—',
+    '',   // image
+    r.qty ?? 1,
+    '',   // Design
+    '',   // Process
+    '',   // Supplier
+    '',   // Analyze/CM
+  ])
+
+  // Column index map
+  const CI = { no:0, unit:1, date:2, problem:3, image:4, qty:5, design:6, process:7, supplier:8, analyze:9 }
+
   autoTable(doc, {
-    startY: 22,
-    head: [[
-      'No', 'Unit No', 'Images',
-      'Cause', 'Countermeasure',
-      'Progress', 'Verification',
-      'Created', 'Updated',
-    ]],
-    body: rows,
+    startY: 16,
+    head: [
+      // Row 1 — span Responsible over 3 cols, span Analyze/CM
+      [
+        { content: 'No',      rowSpan: 2 },
+        { content: 'Unit',    rowSpan: 2 },
+        { content: 'Date',    rowSpan: 2 },
+        { content: 'Problem', rowSpan: 2 },
+        { content: 'Image',   rowSpan: 2 },
+        { content: 'Qty',     rowSpan: 2 },
+        { content: 'Responsible', colSpan: 3, styles: { halign: 'center' } },
+        { content: 'Analyze/Countermeasure', rowSpan: 2 },
+      ],
+      // Row 2 — sub-headers for Responsible
+      ['Design', 'Process', 'Supplier'],
+    ],
+    body: bodyRows,
     theme: 'grid',
-    styles: { minCellHeight: 26, valign: 'middle' },
+    styles: {
+      fontSize: 6.5,
+      cellPadding: 1.5,
+      valign: 'top',
+      overflow: 'linebreak',
+      minCellHeight: 22,
+    },
     headStyles: {
-      fillColor: [28, 110, 242],
-      textColor: 255,
+      fillColor: [255, 255, 255],
+      textColor: [0, 0, 0],
       fontStyle: 'bold',
-      fontSize: 7,
+      fontSize: 6.5,
+      halign: 'center',
+      valign: 'middle',
+      lineColor: [0, 0, 0],
+      lineWidth: 0.3,
     },
-    bodyStyles: { fontSize: 7, cellPadding: 2 },
+    bodyStyles: {
+      textColor: [0, 0, 0],
+      lineColor: [0, 0, 0],
+      lineWidth: 0.2,
+    },
+    alternateRowStyles: { fillColor: [255, 255, 255] },
     columnStyles: {
-      0: { cellWidth: 8,  halign: 'center' },
-      2: { cellWidth: 36 },
-      5: { cellWidth: 20, halign: 'center' },
-      6: { cellWidth: 20, halign: 'center' },
+      [CI.no]:       { cellWidth: COL.no,       halign: 'center' },
+      [CI.unit]:     { cellWidth: COL.unit,      halign: 'center' },
+      [CI.date]:     { cellWidth: COL.date,      halign: 'center' },
+      [CI.problem]:  { cellWidth: COL.problem },
+      [CI.image]:    { cellWidth: COL.image },
+      [CI.qty]:      { cellWidth: COL.qty,       halign: 'center' },
+      [CI.design]:   { cellWidth: COL.design,    halign: 'center' },
+      [CI.process]:  { cellWidth: COL.process,   halign: 'center' },
+      [CI.supplier]: { cellWidth: COL.supplier,  halign: 'center' },
+      [CI.analyze]:  { cellWidth: COL.analyze },
     },
-    alternateRowStyles: { fillColor: [245, 247, 250] },
-    margin: { left: 14, right: 14 },
+    margin: { left: MARGIN, right: MARGIN },
 
     didDrawCell: data => {
       if (data.section !== 'body') return
@@ -175,8 +198,8 @@ export async function exportToPDF(reports) {
       if (!report) return
       const pad = 1.5
 
-      // Images column
-      if (column.index === 2) {
+      // ── Images ──────────────────────────────────────────────────────────────
+      if (column.index === CI.image) {
         const [pos, det] = images[i] || []
         if (pos && det) {
           const half = (cell.width - pad * 3) / 2
@@ -185,37 +208,79 @@ export async function exportToPDF(reports) {
         } else if (pos) {
           drawContained(doc, pos, cell.x + pad, cell.y + pad, cell.width - pad * 2, cell.height - pad * 2)
         } else {
-          doc.setFontSize(6.5)
-          doc.setTextColor(170)
+          doc.setFontSize(6)
+          doc.setTextColor(170, 170, 170)
           doc.text('No image', cell.x + cell.width / 2, cell.y + cell.height / 2, { align: 'center', baseline: 'middle' })
+          doc.setTextColor(0, 0, 0)
         }
         return
       }
 
-      // Progress / Verification columns
-      if (column.index === 5 || column.index === 6) {
-        const field = column.index === 5 ? 'progress' : 'verification'
-        const v = Math.min(4, Math.max(0, report[field] ?? 0))
-        const labelH = 4 // space reserved for the "75%" label below the circle
-        const r = Math.min(cell.width, cell.height - labelH) / 2 - 1.5
-        const cx = cell.x + cell.width / 2
-        const cy = cell.y + pad + r
-        drawProgressIcon(doc, v, cx, cy, r)
-        doc.setFontSize(6)
-        doc.setTextColor(100)
-        doc.text(PERCENT[v], cx, cell.y + cell.height - 1.5, { align: 'center' })
+      // ── Responsible checkmarks ──────────────────────────────────────────────
+      const responsible = report.responsible || []
+      if (column.index === CI.design || column.index === CI.process || column.index === CI.supplier) {
+        const label = column.index === CI.design ? 'Design' : column.index === CI.process ? 'Process' : 'Supplier'
+        if (responsible.includes(label)) {
+          doc.setFont('helvetica', 'bold')
+          doc.setFontSize(11)
+          doc.setTextColor(0, 0, 0)
+          doc.text('O', cell.x + cell.width / 2, cell.y + cell.height / 2, { align: 'center', baseline: 'middle' })
+          doc.setFont('helvetica', 'normal')
+          doc.setFontSize(6.5)
+        }
+        return
+      }
+
+      // ── Analyze / Countermeasure ─────────────────────────────────────────────
+      if (column.index === CI.analyze) {
+        const cause = (report.cause || '').trim()
+        const cm    = (report.countermeasure || '').trim()
+        const x = cell.x + pad
+        const maxW = cell.width - pad * 2
+        let curY = cell.y + pad + 3.5
+
+        if (cause) {
+          doc.setFont('helvetica', 'bold')
+          doc.setFontSize(6.5)
+          doc.setTextColor(0, 0, 0)
+          doc.text('Cause :', x, curY)
+          curY += 3.5
+          doc.setFont('helvetica', 'normal')
+          const causeLines = doc.splitTextToSize(cause, maxW)
+          doc.text(causeLines, x, curY)
+          curY += causeLines.length * 3.5 + 2
+        }
+
+        if (cm) {
+          doc.setFont('helvetica', 'bold')
+          doc.setFontSize(6.5)
+          doc.setTextColor(0, 0, 0)
+          doc.text('C/M :', x, curY)
+          curY += 3.5
+          doc.setFont('helvetica', 'normal')
+          const cmLines = doc.splitTextToSize(cm, maxW)
+          doc.text(cmLines, x, curY)
+        }
+
+        if (!cause && !cm) {
+          doc.setFontSize(6)
+          doc.setTextColor(170, 170, 170)
+          doc.text('—', x, cell.y + cell.height / 2, { baseline: 'middle' })
+          doc.setTextColor(0, 0, 0)
+        }
+        return
       }
     },
   })
 
-  // ── Footer ─────────────────────────────────────────────────────────────────
+  // ── Footer page numbers ─────────────────────────────────────────────────────
   const pageCount = doc.internal.getNumberOfPages()
   for (let p = 1; p <= pageCount; p++) {
     doc.setPage(p)
     doc.setFontSize(7)
     doc.setTextColor(150)
-    doc.text(`Page ${p} of ${pageCount}`, 270, 205)
+    doc.text(`Page ${p} of ${pageCount}`, PAGE_W - MARGIN, 207, { align: 'right' })
   }
 
-  doc.save(`defect-reports-${Date.now()}.pdf`)
+  doc.save(`defect-report-${Date.now()}.pdf`)
 }
