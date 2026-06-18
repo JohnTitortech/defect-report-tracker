@@ -1,11 +1,56 @@
 /**
  * Export selected defect reports to an A4 landscape PDF.
  * Layout matches the reference sheet:
- *   No | Unit | Date | Problem | Image | Qty | Design | Process | Supplier | Cause & C/M
+ *   No | Unit | Date | Problem | Image | Qty | Design | Process | Supplier | Cause & C/M | Progress | Verification
  */
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { formatDate } from './db'
+
+const PERCENT = ['0%', '25%', '50%', '75%', '100%']
+
+// ── Quadrant progress icon (from reference) ──────────────────────────────────
+function drawProgressIcon(doc, value, cx, cy, r) {
+  const ctx = doc.context2d
+
+  // Background circle
+  ctx.beginPath()
+  ctx.arc(cx, cy, r, 0, Math.PI * 2)
+  ctx.fillStyle = '#ffffff'
+  ctx.fill()
+  ctx.lineWidth = r * 0.05
+  ctx.strokeStyle = '#d1d5db'
+  ctx.stroke()
+
+  // Filled quadrants (clockwise from top)
+  for (let i = 0; i < 4; i++) {
+    if (i < value) {
+      const start = -Math.PI / 2 + i * (Math.PI / 2)
+      const end = start + Math.PI / 2
+      ctx.beginPath()
+      ctx.moveTo(cx, cy)
+      ctx.arc(cx, cy, r, start, end)
+      ctx.closePath()
+      ctx.fillStyle = '#111827'
+      ctx.fill()
+    }
+  }
+
+  // Grid divider lines
+  ctx.strokeStyle = '#d1d5db'
+  ctx.lineWidth = r * 0.035
+  ctx.beginPath()
+  ctx.moveTo(cx, cy - r); ctx.lineTo(cx, cy + r)
+  ctx.moveTo(cx - r, cy); ctx.lineTo(cx + r, cy)
+  ctx.stroke()
+
+  // Outer ring
+  ctx.beginPath()
+  ctx.arc(cx, cy, r, 0, Math.PI * 2)
+  ctx.strokeStyle = '#9ca3af'
+  ctx.lineWidth = r * 0.05
+  ctx.stroke()
+}
 
 // ── Remote image → embeddable data ──────────────────────────────────────────
 async function loadImage(url) {
@@ -77,67 +122,61 @@ export async function exportToPDF(reports) {
   )
 
   // Column widths (total ~ PAGE_W - 2*MARGIN = 281)
-  // No | Unit | Date | Problem | Image | Qty | Design | Process | Supplier | Analyze/CM
+  // No | Unit | Date | Problem | Image | Qty | Design | Process | Supplier | Analyze/CM | Progress | Verification
   const COL = {
-    no:       6,
-    unit:     10,
-    date:     18,
-    problem:  38,
-    image:    38,
-    qty:      8,
-    design:   14,
-    process:  14,
-    supplier: 14,
-    analyze:  0, // fill remaining
+    no:           6,
+    unit:         10,
+    date:         18,
+    problem:      34,
+    image:        38,
+    qty:          8,
+    design:       13,
+    process:      13,
+    supplier:     13,
+    progress:     16,
+    verification: 16,
+    analyze:      0, // fill remaining
   }
-  const fixedW = COL.no + COL.unit + COL.date + COL.problem + COL.image + COL.qty + COL.design + COL.process + COL.supplier
+  const fixedW = COL.no + COL.unit + COL.date + COL.problem + COL.image +
+                 COL.qty + COL.design + COL.process + COL.supplier +
+                 COL.progress + COL.verification
   COL.analyze = (PAGE_W - MARGIN * 2) - fixedW
 
-  // Row data — images & responsible drawn in didDrawCell
-  const rows = reports.map((r, i) => [
-    i + 1,
-    r.unitNo || '—',
-    r.date ? formatDate({ seconds: undefined, _date: r.date }) : '—',
-    r.problem || '—',
-    '',   // image (drawn in didDrawCell)
-    r.qty ?? 1,
-    '',   // Design
-    '',   // Process
-    '',   // Supplier
-    '',   // Analyze/CM (drawn in didDrawCell)
-  ])
+  // Column index map
+  const CI = {
+    no: 0, unit: 1, date: 2, problem: 3, image: 4,
+    qty: 5, design: 6, process: 7, supplier: 8,
+    analyze: 9, progress: 10, verification: 11,
+  }
 
   // Helper to format date from raw YYYY-MM-DD string OR Firestore ts
   function fmtDate(r) {
     if (r.date && typeof r.date === 'string') {
-      // parse YYYY-MM-DD
       const [y, m, d] = r.date.split('-')
       return `${d}/${m}/${y}`
     }
     return formatDate(r.createdAt)
   }
 
-  // Re-build rows with correct date
   const bodyRows = reports.map((r, i) => [
     i + 1,
     r.unitNo || '—',
     fmtDate(r),
     r.problem || '—',
-    '',   // image
+    '',   // image (drawn in didDrawCell)
     r.qty ?? 1,
-    '',   // Design
-    '',   // Process
-    '',   // Supplier
-    '',   // Analyze/CM
+    '',   // Design  (drawn in didDrawCell)
+    '',   // Process (drawn in didDrawCell)
+    '',   // Supplier(drawn in didDrawCell)
+    '',   // Analyze/CM (drawn in didDrawCell)
+    '',   // Progress   (drawn in didDrawCell)
+    '',   // Verification (drawn in didDrawCell)
   ])
-
-  // Column index map
-  const CI = { no:0, unit:1, date:2, problem:3, image:4, qty:5, design:6, process:7, supplier:8, analyze:9 }
 
   autoTable(doc, {
     startY: 16,
     head: [
-      // Row 1 — span Responsible over 3 cols, span Analyze/CM
+      // Row 1
       [
         { content: 'No',      rowSpan: 2 },
         { content: 'Unit',    rowSpan: 2 },
@@ -147,6 +186,8 @@ export async function exportToPDF(reports) {
         { content: 'Qty',     rowSpan: 2 },
         { content: 'Responsible', colSpan: 3, styles: { halign: 'center' } },
         { content: 'Analyze/Countermeasure', rowSpan: 2 },
+        { content: 'Progress',     rowSpan: 2 },
+        { content: 'Verification', rowSpan: 2 },
       ],
       // Row 2 — sub-headers for Responsible
       ['Design', 'Process', 'Supplier'],
@@ -177,16 +218,18 @@ export async function exportToPDF(reports) {
     },
     alternateRowStyles: { fillColor: [255, 255, 255] },
     columnStyles: {
-      [CI.no]:       { cellWidth: COL.no,       halign: 'center' },
-      [CI.unit]:     { cellWidth: COL.unit,      halign: 'center' },
-      [CI.date]:     { cellWidth: COL.date,      halign: 'center' },
-      [CI.problem]:  { cellWidth: COL.problem },
-      [CI.image]:    { cellWidth: COL.image },
-      [CI.qty]:      { cellWidth: COL.qty,       halign: 'center' },
-      [CI.design]:   { cellWidth: COL.design,    halign: 'center' },
-      [CI.process]:  { cellWidth: COL.process,   halign: 'center' },
-      [CI.supplier]: { cellWidth: COL.supplier,  halign: 'center' },
-      [CI.analyze]:  { cellWidth: COL.analyze },
+      [CI.no]:           { cellWidth: COL.no,           halign: 'center' },
+      [CI.unit]:         { cellWidth: COL.unit,          halign: 'center' },
+      [CI.date]:         { cellWidth: COL.date,          halign: 'center' },
+      [CI.problem]:      { cellWidth: COL.problem },
+      [CI.image]:        { cellWidth: COL.image },
+      [CI.qty]:          { cellWidth: COL.qty,           halign: 'center' },
+      [CI.design]:       { cellWidth: COL.design,        halign: 'center' },
+      [CI.process]:      { cellWidth: COL.process,       halign: 'center' },
+      [CI.supplier]:     { cellWidth: COL.supplier,      halign: 'center' },
+      [CI.analyze]:      { cellWidth: COL.analyze },
+      [CI.progress]:     { cellWidth: COL.progress,      halign: 'center' },
+      [CI.verification]: { cellWidth: COL.verification,  halign: 'center' },
     },
     margin: { left: MARGIN, right: MARGIN },
 
@@ -268,6 +311,22 @@ export async function exportToPDF(reports) {
           doc.text('—', x, cell.y + cell.height / 2, { baseline: 'middle' })
           doc.setTextColor(0, 0, 0)
         }
+        return
+      }
+
+      // ── Progress & Verification (quadrant circle) ────────────────────────────
+      if (column.index === CI.progress || column.index === CI.verification) {
+        const field = column.index === CI.progress ? 'progress' : 'verification'
+        const v = Math.min(4, Math.max(0, report[field] ?? 0))
+        const labelH = 4
+        const r = Math.min(cell.width, cell.height - labelH) / 2 - 1.5
+        const cx = cell.x + cell.width / 2
+        const cy = cell.y + pad + r
+        drawProgressIcon(doc, v, cx, cy, r)
+        doc.setFontSize(6)
+        doc.setTextColor(100)
+        doc.text(PERCENT[v], cx, cell.y + cell.height - 1.5, { align: 'center' })
+        doc.setTextColor(0, 0, 0)
         return
       }
     },
