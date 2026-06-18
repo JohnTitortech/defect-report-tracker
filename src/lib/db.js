@@ -16,6 +16,7 @@ export async function createReport(data) {
     unitNo:           data.unitNo           || '',
     problem:          data.problem          || '',
     qty:              data.qty              ?? 1,
+    responsible:      data.responsible      || [],
     cause:            data.cause            || '',
     countermeasure:   data.countermeasure   || '',
     progress:         data.progress         ?? 0,
