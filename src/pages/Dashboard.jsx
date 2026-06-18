@@ -80,8 +80,11 @@ export default function Dashboard() {
       ? filtered.filter(r => selected.has(r.id))
       : filtered
     if (targets.length === 0) { toast.error('No reports to export'); return }
-    exportToPDF(targets)
-    toast.success(`Exporting ${targets.length} report(s)…`)
+    toast.promise(exportToPDF(targets), {
+      loading: `Generating PDF (${targets.length} report${targets.length > 1 ? 's' : ''})…`,
+      success: 'PDF downloaded',
+      error: 'Failed to generate PDF',
+    })
   }
 
   return (
