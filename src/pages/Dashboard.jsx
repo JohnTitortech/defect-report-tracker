@@ -30,6 +30,7 @@ export default function Dashboard() {
   const [modal,    setModal]    = useState(null)  // null | 'add' | { report }
   const [delTarget,setDel]      = useState(null)  // report to delete
   const [imgSrc,   setImgSrc]   = useState(null)  // full-screen image src
+  const [exportDialog, setExportDialog] = useState(false)
 
   // Filters
   const [search,   setSearch]   = useState('')
@@ -80,7 +81,12 @@ export default function Dashboard() {
       ? filtered.filter(r => selected.has(r.id))
       : filtered
     if (targets.length === 0) { toast.error('No reports to export'); return }
-    toast.promise(exportToPDF(targets), {
+    setExportDialog(targets)
+  }
+
+  const handleExportConfirm = (targets, opts) => {
+    setExportDialog(false)
+    toast.promise(exportToPDF(targets, opts), {
       loading: `Generating PDF (${targets.length} report${targets.length > 1 ? 's' : ''})…`,
       success: 'PDF downloaded',
       error: 'Failed to generate PDF',
@@ -251,6 +257,14 @@ export default function Dashboard() {
       {imgSrc && (
         <ImageModal src={imgSrc} onClose={() => setImgSrc(null)} />
       )}
+
+      {exportDialog && (
+        <ExportDialog
+          count={exportDialog.length}
+          onConfirm={opts => handleExportConfirm(exportDialog, opts)}
+          onCancel={() => setExportDialog(false)}
+        />
+      )}
     </div>
   )
 }
@@ -390,6 +404,79 @@ function ImageCell({ report, onView }) {
     </div>
   )
 }
+
+// ── Export Format Dialog ───────────────────────────────────────────────────────
+function ExportDialog({ count, onConfirm, onCancel }) {
+  const [pageSize,    setPageSize]    = React.useState('a4')
+  const [orientation, setOrientation] = React.useState('landscape')
+
+  const OptionBtn = ({ active, onClick, children }) => (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`px-4 py-2 rounded-lg text-sm font-medium border transition-all
+        ${active
+          ? 'bg-accent text-white border-accent'
+          : 'bg-steel-50 dark:bg-steel-800 border-steel-200 dark:border-steel-700 text-steel-700 dark:text-steel-300 hover:border-accent/60'
+        }`}
+    >
+      {children}
+    </button>
+  )
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
+      <div className="bg-white dark:bg-steel-900 rounded-2xl shadow-2xl w-full max-w-sm border border-steel-200 dark:border-steel-700 animate-slide-up">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-steel-200 dark:border-steel-700">
+          <h2 className="font-semibold text-steel-900 dark:text-steel-100">Export PDF</h2>
+          <button onClick={onCancel} className="icon-btn"><X className="w-5 h-5" /></button>
+        </div>
+
+        <div className="p-6 space-y-5">
+          <p className="text-sm text-steel-500 dark:text-steel-400">
+            Exporting <span className="font-semibold text-steel-900 dark:text-steel-100">{count}</span> report{count !== 1 ? 's' : ''}
+          </p>
+
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-steel-400 mb-2">Page Size</p>
+            <div className="flex gap-2">
+              <OptionBtn active={pageSize === 'a4'} onClick={() => setPageSize('a4')}>A4</OptionBtn>
+              <OptionBtn active={pageSize === 'a3'} onClick={() => setPageSize('a3')}>A3</OptionBtn>
+            </div>
+          </div>
+
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-steel-400 mb-2">Orientation</p>
+            <div className="flex gap-2">
+              <OptionBtn active={orientation === 'landscape'} onClick={() => setOrientation('landscape')}>Landscape</OptionBtn>
+              <OptionBtn active={orientation === 'portrait'}  onClick={() => setOrientation('portrait')}>Portrait</OptionBtn>
+            </div>
+          </div>
+
+          <div className="text-xs text-steel-400 bg-steel-50 dark:bg-steel-800 rounded-lg px-3 py-2">
+            {pageSize.toUpperCase()} · {orientation.charAt(0).toUpperCase() + orientation.slice(1)} ·{' '}
+            {pageSize === 'a4' && orientation === 'landscape' && '297 × 210 mm'}
+            {pageSize === 'a4' && orientation === 'portrait'  && '210 × 297 mm'}
+            {pageSize === 'a3' && orientation === 'landscape' && '420 × 297 mm'}
+            {pageSize === 'a3' && orientation === 'portrait'  && '297 × 420 mm'}
+          </div>
+        </div>
+
+        <div className="px-6 py-4 border-t border-steel-200 dark:border-steel-700 flex justify-end gap-3">
+          <button type="button" onClick={onCancel} className="btn-ghost">Cancel</button>
+          <button
+            type="button"
+            onClick={() => onConfirm({ pageSize, orientation })}
+            className="btn-primary flex items-center gap-2"
+          >
+            <Download className="w-4 h-4" /> Download
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 
 function EmptyState({ search, onAdd }) {
   return (
