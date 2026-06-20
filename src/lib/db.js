@@ -14,6 +14,7 @@ export async function createReport(data) {
   return addDoc(collection(db, COL), {
     date:             data.date             || '',
     unitNo:           data.unitNo           || '',
+    model:            data.model            || '',
     problem:          data.problem          || '',
     qty:              data.qty              ?? 1,
     responsible:      data.responsible      || [],
