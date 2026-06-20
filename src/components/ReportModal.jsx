@@ -5,6 +5,7 @@ import React, { useState } from 'react'
 import { X, ImageIcon, Camera } from 'lucide-react'
 import QuadrantProgress from './QuadrantProgress'
 import ImageUploader from './ImageUploader'
+import { MODEL_OPTS } from '../pages/Dashboard'
 
 // Helper: returns today's date as YYYY-MM-DD string (local time)
 function todayStr() {
@@ -22,6 +23,7 @@ const EMPTY = {
   unitNo: '', problem: '', qty: 1, responsible: [], cause: '', countermeasure: '',
   progress: 0, verification: 0,
   layoutType: null, positionImageUrl: null, detailImageUrl: null,
+  model: '',
 }
 
 export default function ReportModal({ report = null, user, onSave, onClose }) {
@@ -77,6 +79,21 @@ export default function ReportModal({ report = null, user, onSave, onClose }) {
                 required
               />
             </div>
+
+            {/* Model — QC only */}
+            {isQC && (
+              <div>
+                <label className="field-label">Model</label>
+                <select
+                  className="field-input"
+                  value={form.model || ''}
+                  onChange={e => set('model', e.target.value)}
+                >
+                  <option value="">— Pilih Model —</option>
+                  {MODEL_OPTS.map(m => <option key={m} value={m}>{m}</option>)}
+                </select>
+              </div>
+            )}
 
             {/* Unit Number */}
             <div>
