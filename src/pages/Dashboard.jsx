@@ -20,6 +20,7 @@ import toast            from 'react-hot-toast'
 
 const PROGRESS_OPTS = ['All', '0%', '25%', '50%', '75%', '100%']
 const PROGRESS_VAL  = { 'All': null, '0%': 0, '25%': 1, '50%': 2, '75%': 3, '100%': 4 }
+export const MODEL_OPTS = ['Fortuner CCV', 'Fortuner Ambulance']
 
 export default function Dashboard() {
   const { user, logOut }   = useAuth()
@@ -35,6 +36,7 @@ export default function Dashboard() {
   // Filters
   const [search,   setSearch]   = useState('')
   const [filterP,  setFilterP]  = useState('All')
+  const [filterM,  setFilterM]  = useState('All')
 
   // Selection for PDF export
   const [selected, setSelected] = useState(new Set())
@@ -42,6 +44,9 @@ export default function Dashboard() {
   // ── Derived list ────────────────────────────────────────────────────────────
   const filtered = useMemo(() => {
     let list = [...reports]
+    if (filterM !== 'All') {
+      list = list.filter(r => r.model === filterM)
+    }
     if (search.trim()) {
       const q = search.toLowerCase()
       list = list.filter(r => r.unitNo?.toLowerCase().includes(q))
@@ -50,7 +55,7 @@ export default function Dashboard() {
       list = list.filter(r => r.progress === PROGRESS_VAL[filterP])
     }
     return list
-  }, [reports, search, filterP])
+  }, [reports, search, filterP, filterM])
 
   // ── Selection helpers ───────────────────────────────────────────────────────
   const toggleSelect = id => setSelected(s => {
@@ -143,6 +148,20 @@ export default function Dashboard() {
             </select>
           </div>
 
+          {/* Model filter */}
+          <div className="relative hidden sm:block">
+            <select
+              value={filterM}
+              onChange={e => setFilterM(e.target.value)}
+              className="px-3 pr-8 py-2 text-sm bg-steel-100 dark:bg-steel-800 border border-steel-200 dark:border-steel-700
+                         rounded-lg text-steel-900 dark:text-steel-100 appearance-none
+                         focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all"
+            >
+              <option value="All">All Models</option>
+              {MODEL_OPTS.map(m => <option key={m} value={m}>{m}</option>)}
+            </select>
+          </div>
+
           <div className="ml-auto flex items-center gap-2">
             <button onClick={reload} className="icon-btn" title="Refresh">
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
@@ -171,6 +190,9 @@ export default function Dashboard() {
           <span className="font-mono">{user?.email}</span>
           <span>•</span>
           <span>{filtered.length} of {reports.length} reports</span>
+          {filterM !== 'All' && (
+            <><span>•</span><span className="text-accent font-medium">{filterM}</span></>
+          )}
           {selected.size > 0 && (
             <><span>•</span><span className="text-accent">{selected.size} selected</span></>
           )}
