@@ -101,10 +101,10 @@ function drawContained(doc, img, x, y, boxW, boxH) {
 
 /**
  * @param {Array} reports
- * @param {{ pageSize: 'a4'|'a3', orientation: 'landscape'|'portrait' }} options
+ * @param {{ pageSize: 'a4'|'a3', orientation: 'landscape'|'portrait', rowsPerPage?: 'auto'|number }} options
  */
 export async function exportToPDF(reports, options = {}) {
-  const { pageSize = 'a4', orientation = 'landscape' } = options
+  const { pageSize = 'a4', orientation = 'landscape', rowsPerPage = 'auto' } = options
   const cfgKey = `${pageSize}-${orientation}`
   const cfg = PAGE_CONFIGS[cfgKey] || PAGE_CONFIGS['a4-landscape']
 
@@ -113,30 +113,32 @@ export async function exportToPDF(reports, options = {}) {
 
   const doc = new jsPDF({ orientation, unit: 'mm', format: pageSize })
 
-  // Scale factor relative to A4 landscape baseline
+  // Scale factor relative to A4 landscape baseline — unaffected by rowsPerPage
   const scale = PAGE_W / 297
 
   // Derived sizes
   const titleBarH = Math.round(14 * scale)
   const startY    = titleBarH + 2
 
-  // ── Title header ─────────────────────────────────────────────────────────
-  doc.setFillColor(28, 28, 28)
-  doc.rect(0, 0, PAGE_W, titleBarH, 'F')
-  doc.setTextColor(255, 255, 255)
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(titleFontSize)
-  doc.text('DEFECT REPORT', MARGIN, titleBarH * 0.65)
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(FS - 0.5)
-  doc.text(`Generated: ${new Date().toLocaleString('en-GB')}`, PAGE_W - MARGIN, titleBarH * 0.65, { align: 'right' })
+  // ── Title header (drawn once per page) ─────────────────────────────────────
+  function drawTitleBar() {
+    doc.setFillColor(28, 28, 28)
+    doc.rect(0, 0, PAGE_W, titleBarH, 'F')
+    doc.setTextColor(255, 255, 255)
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(titleFontSize)
+    doc.text('DEFECT REPORT', MARGIN, titleBarH * 0.65)
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(FS - 0.5)
+    doc.text(`Generated: ${new Date().toLocaleString('en-GB')}`, PAGE_W - MARGIN, titleBarH * 0.65, { align: 'right' })
+  }
 
   // ── Pre-load images ──────────────────────────────────────────────────────
-  const images = await Promise.all(
+  const allImages = await Promise.all(
     reports.map(r => Promise.all([loadImage(r.positionImageUrl), loadImage(r.detailImageUrl)]))
   )
 
-  // ── Column widths (scale proportionally) ────────────────────────────────
+  // ── Column widths (scale proportionally — same regardless of rowsPerPage) ──
   const usableW = PAGE_W - MARGIN * 2
 
   // Fixed cols scaled from A4-landscape baseline proportions
@@ -174,169 +176,192 @@ export async function exportToPDF(reports, options = {}) {
     return formatDate(r.createdAt)
   }
 
-  const bodyRows = reports.map((r, i) => [
-    i + 1, r.unitNo || '—', fmtDate(r), r.problem || '—',
-    '', r.qty ?? 1, '', '', '', '', '', '',
-  ])
-
   const lineH = FS * 0.35278 + 1  // approx mm per line at given fontSize
 
-  autoTable(doc, {
-    startY,
-    head: [
-      [
-        { content: 'No',      rowSpan: 2 },
-        { content: 'Unit',    rowSpan: 2 },
-        { content: 'Date',    rowSpan: 2 },
-        { content: 'Problem', rowSpan: 2 },
-        { content: 'Image',   rowSpan: 2 },
-        { content: 'Qty',     rowSpan: 2 },
-        { content: 'Responsible', colSpan: 3, styles: { halign: 'center' } },
-        { content: 'Analyze/Countermeasure', rowSpan: 2 },
-        { content: 'Progress',     rowSpan: 2 },
-        { content: 'Verification', rowSpan: 2 },
+  // ── Render one batch of rows (a "chunk") onto the current page ─────────────
+  // numberOffset lets "No" keep counting up continuously across chunks/pages.
+  function renderChunk(chunkReports, chunkImages, numberOffset) {
+    const bodyRows = chunkReports.map((r, i) => [
+      numberOffset + i + 1, r.unitNo || '—', fmtDate(r), r.problem || '—',
+      '', r.qty ?? 1, '', '', '', '', '', '',
+    ])
+
+    autoTable(doc, {
+      startY,
+      head: [
+        [
+          { content: 'No',      rowSpan: 2 },
+          { content: 'Unit',    rowSpan: 2 },
+          { content: 'Date',    rowSpan: 2 },
+          { content: 'Problem', rowSpan: 2 },
+          { content: 'Image',   rowSpan: 2 },
+          { content: 'Qty',     rowSpan: 2 },
+          { content: 'Responsible', colSpan: 3, styles: { halign: 'center' } },
+          { content: 'Analyze/Countermeasure', rowSpan: 2 },
+          { content: 'Progress',     rowSpan: 2 },
+          { content: 'Verification', rowSpan: 2 },
+        ],
+        ['Design', 'Process', 'Supplier'],
       ],
-      ['Design', 'Process', 'Supplier'],
-    ],
-    body: bodyRows,
-    theme: 'grid',
-    styles: {
-      fontSize: FS,
-      cellPadding: Math.max(1, 1.5 * scale),
-      valign: 'top',
-      overflow: 'linebreak',
-      minCellHeight: minRowH,
-    },
-    headStyles: {
-      fillColor: [255, 255, 255],
-      textColor: [0, 0, 0],
-      fontStyle: 'bold',
-      fontSize: FS,
-      halign: 'center',
-      valign: 'middle',
-      lineColor: [0, 0, 0],
-      lineWidth: 0.3,
-    },
-    bodyStyles: {
-      textColor: [0, 0, 0],
-      lineColor: [0, 0, 0],
-      lineWidth: 0.2,
-    },
-    alternateRowStyles: { fillColor: [255, 255, 255] },
-    columnStyles: {
-      [CI.no]:           { cellWidth: COL.no,           halign: 'center' },
-      [CI.unit]:         { cellWidth: COL.unit,          halign: 'center' },
-      [CI.date]:         { cellWidth: COL.date,          halign: 'center' },
-      [CI.problem]:      { cellWidth: COL.problem },
-      [CI.image]:        { cellWidth: COL.image },
-      [CI.qty]:          { cellWidth: COL.qty,           halign: 'center' },
-      [CI.design]:       { cellWidth: COL.design,        halign: 'center' },
-      [CI.process]:      { cellWidth: COL.process,       halign: 'center' },
-      [CI.supplier]:     { cellWidth: COL.supplier,      halign: 'center' },
-      [CI.analyze]:      { cellWidth: COL.analyze },
-      [CI.progress]:     { cellWidth: COL.progress,      halign: 'center' },
-      [CI.verification]: { cellWidth: COL.verification,  halign: 'center' },
-    },
-    margin: { left: MARGIN, right: MARGIN },
+      body: bodyRows,
+      theme: 'grid',
+      styles: {
+        fontSize: FS,
+        cellPadding: Math.max(1, 1.5 * scale),
+        valign: 'top',
+        overflow: 'linebreak',
+        minCellHeight: minRowH,
+      },
+      headStyles: {
+        fillColor: [255, 255, 255],
+        textColor: [0, 0, 0],
+        fontStyle: 'bold',
+        fontSize: FS,
+        halign: 'center',
+        valign: 'middle',
+        lineColor: [0, 0, 0],
+        lineWidth: 0.3,
+      },
+      bodyStyles: {
+        textColor: [0, 0, 0],
+        lineColor: [0, 0, 0],
+        lineWidth: 0.2,
+      },
+      alternateRowStyles: { fillColor: [255, 255, 255] },
+      columnStyles: {
+        [CI.no]:           { cellWidth: COL.no,           halign: 'center' },
+        [CI.unit]:         { cellWidth: COL.unit,          halign: 'center' },
+        [CI.date]:         { cellWidth: COL.date,          halign: 'center' },
+        [CI.problem]:      { cellWidth: COL.problem },
+        [CI.image]:        { cellWidth: COL.image },
+        [CI.qty]:          { cellWidth: COL.qty,           halign: 'center' },
+        [CI.design]:       { cellWidth: COL.design,        halign: 'center' },
+        [CI.process]:      { cellWidth: COL.process,       halign: 'center' },
+        [CI.supplier]:     { cellWidth: COL.supplier,      halign: 'center' },
+        [CI.analyze]:      { cellWidth: COL.analyze },
+        [CI.progress]:     { cellWidth: COL.progress,      halign: 'center' },
+        [CI.verification]: { cellWidth: COL.verification,  halign: 'center' },
+      },
+      margin: { left: MARGIN, right: MARGIN, top: startY },
 
-    didDrawCell: data => {
-      if (data.section !== 'body') return
-      const { column, cell, row } = data
-      const i = row.index
-      const report = reports[i]
-      if (!report) return
-      const pad = Math.max(1, 1.5 * scale)
+      didDrawPage: () => {
+        // Redraw the title bar on every page this chunk spills onto
+        // (e.g. when a row's content naturally overflows the page height).
+        drawTitleBar()
+      },
 
-      // Images
-      if (column.index === CI.image) {
-        const [pos, det] = images[i] || []
-        if (pos && det) {
-          const half = (cell.width - pad * 3) / 2
-          drawContained(doc, pos, cell.x + pad, cell.y + pad, half, cell.height - pad * 2)
-          drawContained(doc, det, cell.x + pad * 2 + half, cell.y + pad, half, cell.height - pad * 2)
-        } else if (pos) {
-          drawContained(doc, pos, cell.x + pad, cell.y + pad, cell.width - pad * 2, cell.height - pad * 2)
-        } else {
+      didDrawCell: data => {
+        if (data.section !== 'body') return
+        const { column, cell, row } = data
+        const i = row.index
+        const report = chunkReports[i]
+        if (!report) return
+        const pad = Math.max(1, 1.5 * scale)
+
+        // Images
+        if (column.index === CI.image) {
+          const [pos, det] = chunkImages[i] || []
+          if (pos && det) {
+            const half = (cell.width - pad * 3) / 2
+            drawContained(doc, pos, cell.x + pad, cell.y + pad, half, cell.height - pad * 2)
+            drawContained(doc, det, cell.x + pad * 2 + half, cell.y + pad, half, cell.height - pad * 2)
+          } else if (pos) {
+            drawContained(doc, pos, cell.x + pad, cell.y + pad, cell.width - pad * 2, cell.height - pad * 2)
+          } else {
+            doc.setFontSize(FS - 0.5)
+            doc.setTextColor(170, 170, 170)
+            doc.text('No image', cell.x + cell.width / 2, cell.y + cell.height / 2, { align: 'center', baseline: 'middle' })
+            doc.setTextColor(0, 0, 0)
+          }
+          return
+        }
+
+        // Responsible checkmarks
+        const responsible = report.responsible || []
+        if (column.index === CI.design || column.index === CI.process || column.index === CI.supplier) {
+          const label = column.index === CI.design ? 'Design' : column.index === CI.process ? 'Process' : 'Supplier'
+          if (responsible.includes(label)) {
+            doc.setFont('helvetica', 'bold')
+            doc.setFontSize(Math.round(11 * scale))
+            doc.setTextColor(0, 0, 0)
+            doc.text('O', cell.x + cell.width / 2, cell.y + cell.height / 2, { align: 'center', baseline: 'middle' })
+            doc.setFont('helvetica', 'normal')
+            doc.setFontSize(FS)
+          }
+          return
+        }
+
+        // Analyze / Countermeasure
+        if (column.index === CI.analyze) {
+          const cause = (report.cause || '').trim()
+          const cm    = (report.countermeasure || '').trim()
+          const x = cell.x + pad
+          const maxW = cell.width - pad * 2
+          let curY = cell.y + pad + lineH
+
+          if (cause) {
+            doc.setFont('helvetica', 'bold')
+            doc.setFontSize(FS)
+            doc.setTextColor(0, 0, 0)
+            doc.text('Cause :', x, curY)
+            curY += lineH
+            doc.setFont('helvetica', 'normal')
+            const causeLines = doc.splitTextToSize(cause, maxW)
+            doc.text(causeLines, x, curY)
+            curY += causeLines.length * lineH + lineH * 0.6
+          }
+
+          if (cm) {
+            doc.setFont('helvetica', 'bold')
+            doc.setFontSize(FS)
+            doc.setTextColor(0, 0, 0)
+            doc.text('C/M :', x, curY)
+            curY += lineH
+            doc.setFont('helvetica', 'normal')
+            const cmLines = doc.splitTextToSize(cm, maxW)
+            doc.text(cmLines, x, curY)
+          }
+
+          if (!cause && !cm) {
+            doc.setFontSize(FS - 0.5)
+            doc.setTextColor(170, 170, 170)
+            doc.text('—', x, cell.y + cell.height / 2, { baseline: 'middle' })
+            doc.setTextColor(0, 0, 0)
+          }
+          return
+        }
+
+        // Progress & Verification (quadrant circle)
+        if (column.index === CI.progress || column.index === CI.verification) {
+          const field = column.index === CI.progress ? 'progress' : 'verification'
+          const v = Math.min(4, Math.max(0, report[field] ?? 0))
+          const labelH = FS * 0.35278 + 1.5
+          const r = Math.min(cell.width, cell.height - labelH) / 2 - 1.5
+          const cx = cell.x + cell.width / 2
+          const cy = cell.y + pad + r
+          drawProgressIcon(doc, v, cx, cy, r)
           doc.setFontSize(FS - 0.5)
-          doc.setTextColor(170, 170, 170)
-          doc.text('No image', cell.x + cell.width / 2, cell.y + cell.height / 2, { align: 'center', baseline: 'middle' })
+          doc.setTextColor(100)
+          doc.text(PERCENT[v], cx, cell.y + cell.height - 1.5, { align: 'center' })
           doc.setTextColor(0, 0, 0)
+          return
         }
-        return
-      }
+      },
+    })
+  }
 
-      // Responsible checkmarks
-      const responsible = report.responsible || []
-      if (column.index === CI.design || column.index === CI.process || column.index === CI.supplier) {
-        const label = column.index === CI.design ? 'Design' : column.index === CI.process ? 'Process' : 'Supplier'
-        if (responsible.includes(label)) {
-          doc.setFont('helvetica', 'bold')
-          doc.setFontSize(Math.round(11 * scale))
-          doc.setTextColor(0, 0, 0)
-          doc.text('O', cell.x + cell.width / 2, cell.y + cell.height / 2, { align: 'center', baseline: 'middle' })
-          doc.setFont('helvetica', 'normal')
-          doc.setFontSize(FS)
-        }
-        return
-      }
+  // ── Split into chunks if a fixed rows-per-page count was requested ─────────
+  // 'auto' = let autoTable fit as many rows as the page allows (original behavior).
+  const perPage = (rowsPerPage === 'auto' || !rowsPerPage) ? null : Math.max(1, Number(rowsPerPage))
 
-      // Analyze / Countermeasure
-      if (column.index === CI.analyze) {
-        const cause = (report.cause || '').trim()
-        const cm    = (report.countermeasure || '').trim()
-        const x = cell.x + pad
-        const maxW = cell.width - pad * 2
-        let curY = cell.y + pad + lineH
-
-        if (cause) {
-          doc.setFont('helvetica', 'bold')
-          doc.setFontSize(FS)
-          doc.setTextColor(0, 0, 0)
-          doc.text('Cause :', x, curY)
-          curY += lineH
-          doc.setFont('helvetica', 'normal')
-          const causeLines = doc.splitTextToSize(cause, maxW)
-          doc.text(causeLines, x, curY)
-          curY += causeLines.length * lineH + lineH * 0.6
-        }
-
-        if (cm) {
-          doc.setFont('helvetica', 'bold')
-          doc.setFontSize(FS)
-          doc.setTextColor(0, 0, 0)
-          doc.text('C/M :', x, curY)
-          curY += lineH
-          doc.setFont('helvetica', 'normal')
-          const cmLines = doc.splitTextToSize(cm, maxW)
-          doc.text(cmLines, x, curY)
-        }
-
-        if (!cause && !cm) {
-          doc.setFontSize(FS - 0.5)
-          doc.setTextColor(170, 170, 170)
-          doc.text('—', x, cell.y + cell.height / 2, { baseline: 'middle' })
-          doc.setTextColor(0, 0, 0)
-        }
-        return
-      }
-
-      // Progress & Verification (quadrant circle)
-      if (column.index === CI.progress || column.index === CI.verification) {
-        const field = column.index === CI.progress ? 'progress' : 'verification'
-        const v = Math.min(4, Math.max(0, report[field] ?? 0))
-        const labelH = FS * 0.35278 + 1.5
-        const r = Math.min(cell.width, cell.height - labelH) / 2 - 1.5
-        const cx = cell.x + cell.width / 2
-        const cy = cell.y + pad + r
-        drawProgressIcon(doc, v, cx, cy, r)
-        doc.setFontSize(FS - 0.5)
-        doc.setTextColor(100)
-        doc.text(PERCENT[v], cx, cell.y + cell.height - 1.5, { align: 'center' })
-        doc.setTextColor(0, 0, 0)
-        return
-      }
-    },
-  })
+  if (!perPage) {
+    renderChunk(reports, allImages, 0)
+  } else {
+    for (let i = 0; i < reports.length; i += perPage) {
+      if (i > 0) doc.addPage()
+      renderChunk(reports.slice(i, i + perPage), allImages.slice(i, i + perPage), i)
+    }
+  }
 
   // ── Footer page numbers ───────────────────────────────────────────────────
   const pageCount = doc.internal.getNumberOfPages()
