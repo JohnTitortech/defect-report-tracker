@@ -5,7 +5,7 @@ import React, { useState } from 'react'
 import { X, ImageIcon, Camera } from 'lucide-react'
 import QuadrantProgress from './QuadrantProgress'
 import ImageUploader from './ImageUploader'
-import { MODEL_OPTS } from '../pages/Dashboard'
+import { useModels } from '../hooks/useModels'
 
 // Helper: returns today's date as YYYY-MM-DD string (local time)
 function todayStr() {
@@ -32,6 +32,7 @@ export default function ReportModal({ report = null, user, onSave, onClose }) {
     user?.role === 'QC' ||
     user?.role === 'MASTER'
   
+  const { models } = useModels()
   const isEdit = !!report
   const [form, setForm]       = useState(isEdit ? { date: report.date || todayStr(), qty: report.qty ?? 1, responsible: report.responsible || [], ...report } : { ...EMPTY })
   const [showImages, setShowImages] = useState(false)
@@ -90,7 +91,7 @@ export default function ReportModal({ report = null, user, onSave, onClose }) {
                   onChange={e => set('model', e.target.value)}
                 >
                   <option value="">— Pilih Model —</option>
-                  {MODEL_OPTS.map(m => <option key={m} value={m}>{m}</option>)}
+                  {models.map(m => <option key={m.id} value={m.name}>{m.name}</option>)}
                 </select>
               </div>
             )}
