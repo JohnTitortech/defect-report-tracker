@@ -29,7 +29,6 @@ export default function Dashboard() {
   const { user, logOut }   = useAuth()
   const { reports, loading, reload, add, update, remove } = useReports()
   const { models } = useModels()
-  const { lots } = useLotsByModelName(filterM !== 'All' ? filterM : null)
   const [dark, setDark]    = useDarkMode()
 
   // Modals
@@ -45,6 +44,8 @@ export default function Dashboard() {
   const [filterP,  setFilterP]  = useState('All')
   const [filterM,  setFilterM]  = useState('All')
   const [filterL,  setFilterL]  = useState('All')
+
+  const { lots } = useLotsByModelName(filterM !== 'All' ? filterM : null)
 
   // Selection for PDF export
   const [selected, setSelected] = useState(new Set())
