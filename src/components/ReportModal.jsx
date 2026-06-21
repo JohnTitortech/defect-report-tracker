@@ -6,6 +6,7 @@ import { X, ImageIcon, Camera } from 'lucide-react'
 import QuadrantProgress from './QuadrantProgress'
 import ImageUploader from './ImageUploader'
 import { useModels } from '../hooks/useModels'
+import { useLotsByModelName } from '../hooks/useLots'
 
 // Helper: returns today's date as YYYY-MM-DD string (local time)
 function todayStr() {
@@ -24,6 +25,7 @@ const EMPTY = {
   progress: 0, verification: 0,
   layoutType: null, positionImageUrl: null, detailImageUrl: null,
   model: '',
+  lot: '',
 }
 
 export default function ReportModal({ report = null, user, onSave, onClose }) {
@@ -33,12 +35,16 @@ export default function ReportModal({ report = null, user, onSave, onClose }) {
     user?.role === 'MASTER'
   
   const { models } = useModels()
+  const { lots } = useLotsByModelName(form.model)
   const isEdit = !!report
   const [form, setForm]       = useState(isEdit ? { date: report.date || todayStr(), qty: report.qty ?? 1, responsible: report.responsible || [], ...report } : { ...EMPTY })
   const [showImages, setShowImages] = useState(false)
   const [saving, setSaving]   = useState(false)
 
-  const set = (key, val) => setForm(f => ({ ...f, [key]: val }))
+  const set = (key, val) => setForm(f => {
+    if (key === 'model') return { ...f, model: val, lot: '' }
+    return { ...f, [key]: val }
+  })
 
   const handleSubmit = async (e) => {
     e?.preventDefault()
@@ -81,18 +87,61 @@ export default function ReportModal({ report = null, user, onSave, onClose }) {
               />
             </div>
 
-            {/* Model — QC only */}
+            {/* Model — QC/MASTER only, radio buttons */}
             {isQC && (
               <div>
                 <label className="field-label">Model</label>
-                <select
-                  className="field-input"
-                  value={form.model || ''}
-                  onChange={e => set('model', e.target.value)}
-                >
-                  <option value="">— Pilih Model —</option>
-                  {models.map(m => <option key={m.id} value={m.name}>{m.name}</option>)}
-                </select>
+                <div className="flex flex-wrap gap-2 mt-1">
+                  {models.map(m => {
+                    const active = form.model === m.name
+                    return (
+                      <button
+                        key={m.id}
+                        type="button"
+                        onClick={() => set('model', m.name)}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium border transition-all
+                          ${active
+                            ? 'bg-accent text-white border-accent'
+                            : 'bg-steel-50 dark:bg-steel-800 border-steel-200 dark:border-steel-700 text-steel-700 dark:text-steel-300 hover:border-accent/60'
+                          }`}
+                      >
+                        {m.name}
+                      </button>
+                    )
+                  })}
+                  {models.length === 0 && (
+                    <p className="text-xs text-steel-400">Belum ada model tersedia.</p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Lot — hanya muncul setelah model dipilih */}
+            {isQC && form.model && (
+              <div>
+                <label className="field-label">Lot</label>
+                <div className="flex flex-wrap gap-2 mt-1">
+                  {lots.map(l => {
+                    const active = form.lot === l.name
+                    return (
+                      <button
+                        key={l.id}
+                        type="button"
+                        onClick={() => set('lot', l.name)}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium border transition-all
+                          ${active
+                            ? 'bg-accent text-white border-accent'
+                            : 'bg-steel-50 dark:bg-steel-800 border-steel-200 dark:border-steel-700 text-steel-700 dark:text-steel-300 hover:border-accent/60'
+                          }`}
+                      >
+                        {l.name}
+                      </button>
+                    )
+                  })}
+                  {lots.length === 0 && (
+                    <p className="text-xs text-steel-400">Belum ada lot untuk model ini.</p>
+                  )}
+                </div>
               </div>
             )}
 
