@@ -5,7 +5,7 @@ import React, { useState, useMemo } from 'react'
 import {
   Plus, Search, Filter, Download, Trash2, Pencil,
   Sun, Moon, LogOut, ShieldCheck, ChevronUp, ChevronDown,
-  RefreshCw, X, CheckSquare, Square,
+  RefreshCw, X, CheckSquare, Square, Car,
 } from 'lucide-react'
 import { useAuth }      from '../hooks/useAuth'
 import { useReports }   from '../hooks/useReports'
@@ -16,15 +16,17 @@ import QuadrantProgress from '../components/QuadrantProgress'
 import ReportModal      from '../components/ReportModal'
 import ConfirmDialog    from '../components/ConfirmDialog'
 import ImageModal       from '../components/ImageModal'
+import ModelManager     from '../components/ModelManager'
+import { useModels }    from '../hooks/useModels'
 import toast            from 'react-hot-toast'
 
 const PROGRESS_OPTS = ['All', '0%', '25%', '50%', '75%', '100%']
 const PROGRESS_VAL  = { 'All': null, '0%': 0, '25%': 1, '50%': 2, '75%': 3, '100%': 4 }
-export const MODEL_OPTS = ['Fortuner CCV', 'Fortuner Ambulance']
 
 export default function Dashboard() {
   const { user, logOut }   = useAuth()
   const { reports, loading, reload, add, update, remove } = useReports()
+  const { models } = useModels()
   const [dark, setDark]    = useDarkMode()
 
   // Modals
@@ -32,6 +34,7 @@ export default function Dashboard() {
   const [delTarget,setDel]      = useState(null)  // report to delete
   const [imgSrc,   setImgSrc]   = useState(null)  // full-screen image src
   const [exportDialog, setExportDialog] = useState(false)
+  const [showModelMgr, setShowModelMgr] = useState(false)
 
   // Filters
   const [search,   setSearch]   = useState('')
@@ -158,7 +161,7 @@ export default function Dashboard() {
                          focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all"
             >
               <option value="All">All Models</option>
-              {MODEL_OPTS.map(m => <option key={m} value={m}>{m}</option>)}
+              {models.map(m => <option key={m.id} value={m.name}>{m.name}</option>)}
             </select>
           </div>
 
@@ -166,6 +169,11 @@ export default function Dashboard() {
             <button onClick={reload} className="icon-btn" title="Refresh">
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             </button>
+            {user?.role === 'MASTER' && (
+              <button onClick={() => setShowModelMgr(true)} className="icon-btn" title="Manage Models">
+                <Car className="w-4 h-4" />
+              </button>
+            )}
             <button onClick={handleExport} className="icon-btn" title="Export PDF">
               <Download className="w-4 h-4" />
             </button>
@@ -278,6 +286,10 @@ export default function Dashboard() {
 
       {imgSrc && (
         <ImageModal src={imgSrc} onClose={() => setImgSrc(null)} />
+      )}
+
+      {showModelMgr && (
+        <ModelManager onClose={() => setShowModelMgr(false)} />
       )}
 
       {exportDialog && (
