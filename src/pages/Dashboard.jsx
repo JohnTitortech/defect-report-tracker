@@ -169,7 +169,7 @@ export default function Dashboard() {
             <button onClick={reload} className="icon-btn" title="Refresh">
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             </button>
-            {user?.role === 'MASTER' && (
+            {(user?.role === 'MASTER' || user?.role === 'QC') && (
               <button onClick={() => setShowModelMgr(true)} className="icon-btn" title="Manage Models">
                 <Car className="w-4 h-4" />
               </button>
