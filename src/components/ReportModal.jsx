@@ -35,9 +35,9 @@ export default function ReportModal({ report = null, user, onSave, onClose }) {
     user?.role === 'MASTER'
   
   const { models } = useModels()
-  const { lots } = useLotsByModelName(form.model)
   const isEdit = !!report
   const [form, setForm]       = useState(isEdit ? { date: report.date || todayStr(), qty: report.qty ?? 1, responsible: report.responsible || [], ...report } : { ...EMPTY })
+  const { lots } = useLotsByModelName(form.model)
   const [showImages, setShowImages] = useState(false)
   const [saving, setSaving]   = useState(false)
 
