@@ -5,7 +5,7 @@ import React, { useState, useMemo } from 'react'
 import {
   Plus, Search, Filter, Download, Trash2, Pencil,
   Sun, Moon, LogOut, ShieldCheck, ChevronUp, ChevronDown,
-  RefreshCw, X, CheckSquare, Square, Car,
+  RefreshCw, X, CheckSquare, Square, Car, Hash,
 } from 'lucide-react'
 import { useAuth }      from '../hooks/useAuth'
 import { useReports }   from '../hooks/useReports'
@@ -18,6 +18,8 @@ import ConfirmDialog    from '../components/ConfirmDialog'
 import ImageModal       from '../components/ImageModal'
 import ModelManager     from '../components/ModelManager'
 import { useModels }    from '../hooks/useModels'
+import LotManager       from '../components/LotManager'
+import { useLotsByModelName } from '../hooks/useLots'
 import toast            from 'react-hot-toast'
 
 const PROGRESS_OPTS = ['All', '0%', '25%', '50%', '75%', '100%']
@@ -27,6 +29,7 @@ export default function Dashboard() {
   const { user, logOut }   = useAuth()
   const { reports, loading, reload, add, update, remove } = useReports()
   const { models } = useModels()
+  const { lots } = useLotsByModelName(filterM !== 'All' ? filterM : null)
   const [dark, setDark]    = useDarkMode()
 
   // Modals
@@ -35,11 +38,13 @@ export default function Dashboard() {
   const [imgSrc,   setImgSrc]   = useState(null)  // full-screen image src
   const [exportDialog, setExportDialog] = useState(false)
   const [showModelMgr, setShowModelMgr] = useState(false)
+  const [showLotMgr,   setShowLotMgr]   = useState(false)
 
   // Filters
   const [search,   setSearch]   = useState('')
   const [filterP,  setFilterP]  = useState('All')
   const [filterM,  setFilterM]  = useState('All')
+  const [filterL,  setFilterL]  = useState('All')
 
   // Selection for PDF export
   const [selected, setSelected] = useState(new Set())
@@ -50,6 +55,9 @@ export default function Dashboard() {
     if (filterM !== 'All') {
       list = list.filter(r => r.model === filterM)
     }
+    if (filterL !== 'All') {
+      list = list.filter(r => r.lot === filterL)
+    }
     if (search.trim()) {
       const q = search.toLowerCase()
       list = list.filter(r => r.unitNo?.toLowerCase().includes(q))
@@ -58,7 +66,7 @@ export default function Dashboard() {
       list = list.filter(r => r.progress === PROGRESS_VAL[filterP])
     }
     return list
-  }, [reports, search, filterP, filterM])
+  }, [reports, search, filterP, filterM, filterL])
 
   // ── Selection helpers ───────────────────────────────────────────────────────
   const toggleSelect = id => setSelected(s => {
@@ -155,13 +163,27 @@ export default function Dashboard() {
           <div className="relative hidden sm:block">
             <select
               value={filterM}
-              onChange={e => setFilterM(e.target.value)}
+              onChange={e => { setFilterM(e.target.value); setFilterL('All') }}
               className="px-3 pr-8 py-2 text-sm bg-steel-100 dark:bg-steel-800 border border-steel-200 dark:border-steel-700
                          rounded-lg text-steel-900 dark:text-steel-100 appearance-none
                          focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all"
             >
               <option value="All">All Models</option>
               {models.map(m => <option key={m.id} value={m.name}>{m.name}</option>)}
+            </select>
+          </div>
+
+          {/* Lot filter */}
+          <div className="relative hidden sm:block">
+            <select
+              value={filterL}
+              onChange={e => setFilterL(e.target.value)}
+              className="px-3 pr-8 py-2 text-sm bg-steel-100 dark:bg-steel-800 border border-steel-200 dark:border-steel-700
+                         rounded-lg text-steel-900 dark:text-steel-100 appearance-none
+                         focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all"
+            >
+              <option value="All">All Lots</option>
+              {lots.map(l => <option key={l.id} value={l.name}>{l.name}</option>)}
             </select>
           </div>
 
@@ -172,6 +194,11 @@ export default function Dashboard() {
             {(user?.role === 'MASTER' || user?.role === 'QC') && (
               <button onClick={() => setShowModelMgr(true)} className="icon-btn" title="Manage Models">
                 <Car className="w-4 h-4" />
+              </button>
+            )}
+            {(user?.role === 'MASTER' || user?.role === 'QC') && (
+              <button onClick={() => setShowLotMgr(true)} className="icon-btn" title="Manage Lots">
+                <Hash className="w-4 h-4" />
               </button>
             )}
             <button onClick={handleExport} className="icon-btn" title="Export PDF">
@@ -200,6 +227,9 @@ export default function Dashboard() {
           <span>{filtered.length} of {reports.length} reports</span>
           {filterM !== 'All' && (
             <><span>•</span><span className="text-accent font-medium">{filterM}</span></>
+          )}
+          {filterL !== 'All' && (
+            <><span>•</span><span className="text-accent font-medium">Lot: {filterL}</span></>
           )}
           {selected.size > 0 && (
             <><span>•</span><span className="text-accent">{selected.size} selected</span></>
@@ -290,6 +320,10 @@ export default function Dashboard() {
 
       {showModelMgr && (
         <ModelManager onClose={() => setShowModelMgr(false)} />
+      )}
+
+      {showLotMgr && (
+        <LotManager onClose={() => setShowLotMgr(false)} />
       )}
 
       {exportDialog && (
