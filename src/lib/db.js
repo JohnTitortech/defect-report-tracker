@@ -15,6 +15,7 @@ export async function createReport(data) {
     date:             data.date             || '',
     unitNo:           data.unitNo           || '',
     model:            data.model            || '',
+    lot:              data.lot              || '',
     problem:          data.problem          || '',
     qty:              data.qty              ?? 1,
     responsible:      data.responsible      || [],
