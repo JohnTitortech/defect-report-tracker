@@ -94,14 +94,11 @@ export default function Dashboard() {
 
   // ── Export ──────────────────────────────────────────────────────────────────
   const handleExport = () => {
-    const targets = selected.size > 0
-      ? filtered.filter(r => selected.has(r.id))
-      : filtered
-    if (targets.length === 0) { toast.error('No reports to export'); return }
-    setExportDialog(targets)
+    setExportDialog(true)
   }
 
   const handleExportConfirm = (targets, opts) => {
+    if (targets.length === 0) { toast.error('No reports to export'); return }
     setExportDialog(false)
     toast.promise(exportToPDF(targets, opts), {
       loading: `Generating PDF (${targets.length} report${targets.length > 1 ? 's' : ''})…`,
@@ -329,8 +326,10 @@ export default function Dashboard() {
 
       {exportDialog && (
         <ExportDialog
-          count={exportDialog.length}
-          onConfirm={opts => handleExportConfirm(exportDialog, opts)}
+          reports={reports}
+          models={models}
+          selected={selected}
+          onConfirm={(targets, opts) => handleExportConfirm(targets, opts)}
           onCancel={() => setExportDialog(false)}
         />
       )}
@@ -475,9 +474,40 @@ function ImageCell({ report, onView }) {
 }
 
 // ── Export Format Dialog ───────────────────────────────────────────────────────
-function ExportDialog({ count, onConfirm, onCancel }) {
+function ExportDialog({ reports, models, selected, onConfirm, onCancel }) {
+  const hasSelection = selected.size > 0
+
+  const [source,      setSource]      = React.useState(hasSelection ? 'selected' : 'all')
+  const [expModel,    setExpModel]    = React.useState('All')
+  const [expLot,      setExpLot]      = React.useState('All')
   const [pageSize,    setPageSize]    = React.useState('a4')
   const [orientation, setOrientation] = React.useState('landscape')
+
+  // Distinct model names present in reports (fallback to models list too, in case a model has 0 reports yet)
+  const modelNames = React.useMemo(() => {
+    const fromReports = reports.map(r => r.model).filter(Boolean)
+    const fromModels  = models.map(m => m.name).filter(Boolean)
+    return Array.from(new Set([...fromReports, ...fromModels])).sort()
+  }, [reports, models])
+
+  // Distinct lot names present in reports, scoped to the chosen model
+  const lotNames = React.useMemo(() => {
+    const pool = expModel === 'All' ? reports : reports.filter(r => r.model === expModel)
+    return Array.from(new Set(pool.map(r => r.lot).filter(Boolean))).sort()
+  }, [reports, expModel])
+
+  // Reset lot choice whenever model choice changes
+  React.useEffect(() => { setExpLot('All') }, [expModel])
+
+  const targets = React.useMemo(() => {
+    if (source === 'selected') return reports.filter(r => selected.has(r.id))
+    let list = reports
+    if (expModel !== 'All') list = list.filter(r => r.model === expModel)
+    if (expLot   !== 'All') list = list.filter(r => r.lot === expLot)
+    return list
+  }, [source, expModel, expLot, reports, selected])
+
+  const count = targets.length
 
   const OptionBtn = ({ active, onClick, children }) => (
     <button
@@ -493,6 +523,8 @@ function ExportDialog({ count, onConfirm, onCancel }) {
     </button>
   )
 
+  const selectCls = "w-full px-3 py-2 text-sm bg-steel-50 dark:bg-steel-800 border border-steel-200 dark:border-steel-700 rounded-lg text-steel-900 dark:text-steel-100 appearance-none focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all disabled:opacity-50"
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
       <div className="bg-white dark:bg-steel-900 rounded-2xl shadow-2xl w-full max-w-sm border border-steel-200 dark:border-steel-700 animate-slide-up">
@@ -502,8 +534,53 @@ function ExportDialog({ count, onConfirm, onCancel }) {
         </div>
 
         <div className="p-6 space-y-5">
+          {/* Source */}
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-steel-400 mb-2">Source</p>
+            <div className="flex gap-2 flex-wrap">
+              {hasSelection && (
+                <OptionBtn active={source === 'selected'} onClick={() => setSource('selected')}>
+                  Selected ({selected.size})
+                </OptionBtn>
+              )}
+              <OptionBtn active={source === 'all'} onClick={() => setSource('all')}>
+                Pilih Model / Lot
+              </OptionBtn>
+            </div>
+          </div>
+
+          {/* Model & Lot pickers — only relevant when not exporting a fixed selection */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-steel-400 mb-2">Model</p>
+              <select
+                value={expModel}
+                disabled={source === 'selected'}
+                onChange={e => setExpModel(e.target.value)}
+                className={selectCls}
+              >
+                <option value="All">All Models</option>
+                {modelNames.map(m => <option key={m} value={m}>{m}</option>)}
+              </select>
+            </div>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-steel-400 mb-2">Lot</p>
+              <select
+                value={expLot}
+                disabled={source === 'selected'}
+                onChange={e => setExpLot(e.target.value)}
+                className={selectCls}
+              >
+                <option value="All">All Lots</option>
+                {lotNames.map(l => <option key={l} value={l}>{l}</option>)}
+              </select>
+            </div>
+          </div>
+
           <p className="text-sm text-steel-500 dark:text-steel-400">
             Exporting <span className="font-semibold text-steel-900 dark:text-steel-100">{count}</span> report{count !== 1 ? 's' : ''}
+            {source !== 'selected' && expModel !== 'All' && <> · <span className="text-accent font-medium">{expModel}</span></>}
+            {source !== 'selected' && expLot   !== 'All' && <> · <span className="text-accent font-medium">Lot {expLot}</span></>}
           </p>
 
           <div>
@@ -535,8 +612,9 @@ function ExportDialog({ count, onConfirm, onCancel }) {
           <button type="button" onClick={onCancel} className="btn-ghost">Cancel</button>
           <button
             type="button"
-            onClick={() => onConfirm({ pageSize, orientation })}
-            className="btn-primary flex items-center gap-2"
+            disabled={count === 0}
+            onClick={() => onConfirm(targets, { pageSize, orientation })}
+            className="btn-primary flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Download className="w-4 h-4" /> Download
           </button>
