@@ -482,6 +482,7 @@ function ExportDialog({ reports, models, selected, onConfirm, onCancel }) {
   const [expLot,      setExpLot]      = React.useState('All')
   const [pageSize,    setPageSize]    = React.useState('a4')
   const [orientation, setOrientation] = React.useState('landscape')
+  const [rowsPerPage, setRowsPerPage] = React.useState('auto')
 
   // Distinct model names present in reports (fallback to models list too, in case a model has 0 reports yet)
   const modelNames = React.useMemo(() => {
@@ -599,6 +600,25 @@ function ExportDialog({ reports, models, selected, onConfirm, onCancel }) {
             </div>
           </div>
 
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-steel-400 mb-2">Rows per Page</p>
+            <div className="flex gap-2 flex-wrap">
+              {['auto', 1, 2, 4, 6, 8, 12].map(n => (
+                <OptionBtn key={n} active={rowsPerPage === n} onClick={() => setRowsPerPage(n)}>
+                  {n === 'auto' ? 'Auto' : n}
+                </OptionBtn>
+              ))}
+            </div>
+            {rowsPerPage !== 'auto' && count > 0 && (
+              <p className="text-xs text-steel-400 mt-2">
+                {count} report{count !== 1 ? 's' : ''} ÷ {rowsPerPage}/page ={' '}
+                <span className="font-medium text-steel-600 dark:text-steel-300">
+                  {Math.ceil(count / rowsPerPage)} page{Math.ceil(count / rowsPerPage) !== 1 ? 's' : ''}
+                </span>
+              </p>
+            )}
+          </div>
+
           <div className="text-xs text-steel-400 bg-steel-50 dark:bg-steel-800 rounded-lg px-3 py-2">
             {pageSize.toUpperCase()} · {orientation.charAt(0).toUpperCase() + orientation.slice(1)} ·{' '}
             {pageSize === 'a4' && orientation === 'landscape' && '297 × 210 mm'}
@@ -613,7 +633,7 @@ function ExportDialog({ reports, models, selected, onConfirm, onCancel }) {
           <button
             type="button"
             disabled={count === 0}
-            onClick={() => onConfirm(targets, { pageSize, orientation })}
+            onClick={() => onConfirm(targets, { pageSize, orientation, rowsPerPage })}
             className="btn-primary flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Download className="w-4 h-4" /> Download
