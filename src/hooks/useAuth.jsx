@@ -15,7 +15,6 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
-      console.log("AUTH STATE:", u)
   
       if (!u) {
         setUser(null)
