@@ -7,6 +7,7 @@ import QuadrantProgress from './QuadrantProgress'
 import ImageUploader from './ImageUploader'
 import { useModels } from '../hooks/useModels'
 import { useLotsByModelName } from '../hooks/useLots'
+import { usePartsByModelName } from '../hooks/useParts'
 
 // Helper: returns today's date as YYYY-MM-DD string (local time)
 function todayStr() {
@@ -26,6 +27,7 @@ const EMPTY = {
   layoutType: null, positionImageUrl: null, detailImageUrl: null,
   model: '',
   lot: '',
+  part: '',
 }
 
 export default function ReportModal({ report = null, user, onSave, onClose }) {
@@ -38,11 +40,12 @@ export default function ReportModal({ report = null, user, onSave, onClose }) {
   const isEdit = !!report
   const [form, setForm]       = useState(isEdit ? { date: report.date || todayStr(), qty: report.qty ?? 1, responsible: report.responsible || [], ...report } : { ...EMPTY })
   const { lots } = useLotsByModelName(form.model)
+  const { parts } = usePartsByModelName(form.model)
   const [showImages, setShowImages] = useState(false)
   const [saving, setSaving]   = useState(false)
 
   const set = (key, val) => setForm(f => {
-    if (key === 'model') return { ...f, model: val, lot: '' }
+    if (key === 'model') return { ...f, model: val, lot: '', part: '' }
     return { ...f, [key]: val }
   })
 
@@ -74,6 +77,11 @@ export default function ReportModal({ report = null, user, onSave, onClose }) {
           </div>
 
           <form onSubmit={handleSubmit} className="p-6 space-y-5 max-h-[75vh] overflow-y-auto">
+
+            {/* ── Input Unit Kendaraan ───────────────────────────────── */}
+            <p className="text-xs font-semibold uppercase tracking-wider text-accent">
+              Input Unit Kendaraan
+            </p>
 
             {/* Date */}
             <div>
@@ -158,6 +166,45 @@ export default function ReportModal({ report = null, user, onSave, onClose }) {
                 autoFocus
               />
             </div>
+
+            {/* ── Input Part ─────────────────────────────────────────── */}
+            {isQC && (
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-accent mb-2">
+                  Input Part
+                </p>
+                {!form.model && (
+                  <p className="text-xs text-steel-400">Pilih Model terlebih dahulu di atas.</p>
+                )}
+                {form.model && (
+                  <>
+                    <label className="field-label">Part</label>
+                    <div className="flex flex-wrap gap-2 mt-1">
+                      {parts.map(p => {
+                        const active = form.part === p.name
+                        return (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onClick={() => set('part', p.name)}
+                            className={`px-4 py-2 rounded-lg text-sm font-medium border transition-all
+                              ${active
+                                ? 'bg-accent text-white border-accent'
+                                : 'bg-steel-50 dark:bg-steel-800 border-steel-200 dark:border-steel-700 text-steel-700 dark:text-steel-300 hover:border-accent/60'
+                              }`}
+                          >
+                            {p.name}
+                          </button>
+                        )
+                      })}
+                      {parts.length === 0 && (
+                        <p className="text-xs text-steel-400">Belum ada part untuk model ini.</p>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
 
             {/* Images */}
             <div>
