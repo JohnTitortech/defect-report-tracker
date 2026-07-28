@@ -5,7 +5,7 @@ import React, { useState, useMemo } from 'react'
 import {
   Plus, Search, Filter, Download, Trash2, Pencil,
   Sun, Moon, LogOut, ShieldCheck, ChevronUp, ChevronDown,
-  RefreshCw, X, CheckSquare, Square, Car, Hash,
+  RefreshCw, X, CheckSquare, Square, Car, Hash, Wrench,
 } from 'lucide-react'
 import { useAuth }      from '../hooks/useAuth'
 import { useReports }   from '../hooks/useReports'
@@ -20,6 +20,7 @@ import ModelManager     from '../components/ModelManager'
 import { useModels }    from '../hooks/useModels'
 import LotManager       from '../components/LotManager'
 import { useLotsByModelName } from '../hooks/useLots'
+import PartManager      from '../components/PartManager'
 import toast            from 'react-hot-toast'
 
 const PROGRESS_OPTS = ['All', '0%', '25%', '50%', '75%', '100%']
@@ -37,6 +38,7 @@ export default function Dashboard() {
   const [imgSrc,   setImgSrc]   = useState(null)  // full-screen image src
   const [exportDialog, setExportDialog] = useState(false)
   const [showModelMgr, setShowModelMgr] = useState(false)
+  const [showPartMgr,  setShowPartMgr]  = useState(false)
   const [showLotMgr,   setShowLotMgr]   = useState(false)
 
   // Filters
@@ -195,6 +197,11 @@ export default function Dashboard() {
               </button>
             )}
             {(user?.role === 'MASTER' || user?.role === 'QC') && (
+              <button onClick={() => setShowPartMgr(true)} className="icon-btn" title="Manage Parts">
+                <Wrench className="w-4 h-4" />
+              </button>
+            )}
+            {(user?.role === 'MASTER' || user?.role === 'QC') && (
               <button onClick={() => setShowLotMgr(true)} className="icon-btn" title="Manage Lots">
                 <Hash className="w-4 h-4" />
               </button>
@@ -318,6 +325,10 @@ export default function Dashboard() {
 
       {showModelMgr && (
         <ModelManager onClose={() => setShowModelMgr(false)} />
+      )}
+
+      {showPartMgr && (
+        <PartManager onClose={() => setShowPartMgr(false)} />
       )}
 
       {showLotMgr && (
