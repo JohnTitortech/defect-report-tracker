@@ -183,6 +183,29 @@ export async function exportToPDF(reports, options = {}) {
       '', r.qty ?? 1, '', '', '', '', '', '',
     ])
 
+    const pad = Math.max(1, 1.5 * scale)
+    const analyzeMaxW = COL.analyze - pad * 2
+
+    // Pre-compute the row height each report's Cause/C-M text actually needs,
+    // so autoTable reserves enough space instead of clipping the manually-drawn text.
+    doc.setFontSize(FS)
+    const rowHeights = chunkReports.map(r => {
+      const cause = (r.cause || '').trim()
+      const cm    = (r.countermeasure || '').trim()
+      let neededH = pad * 2
+
+      if (cause) {
+        const causeLines = doc.splitTextToSize(cause, analyzeMaxW)
+        neededH += lineH + causeLines.length * lineH + lineH * 0.6
+      }
+      if (cm) {
+        const cmLines = doc.splitTextToSize(cm, analyzeMaxW)
+        neededH += lineH + cmLines.length * lineH
+      }
+
+      return Math.max(minRowH, neededH)
+    })
+
     autoTable(doc, {
       startY,
       head: [
@@ -240,6 +263,12 @@ export async function exportToPDF(reports, options = {}) {
         [CI.verification]: { cellWidth: COL.verification,  halign: 'center' },
       },
       margin: { left: MARGIN, right: MARGIN, top: startY },
+
+      didParseCell: data => {
+        if (data.section !== 'body') return
+        const needed = rowHeights[data.row.index]
+        if (needed) data.cell.styles.minCellHeight = needed
+      },
 
       didDrawPage: () => {
         // Redraw the title bar on every page this chunk spills onto
