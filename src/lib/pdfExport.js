@@ -186,23 +186,31 @@ export async function exportToPDF(reports, options = {}) {
     const pad = Math.max(1, 1.5 * scale)
     const analyzeMaxW = COL.analyze - pad * 2
 
+    // Mirrors the exact vertical layout used when drawing Cause/C-M text in
+    // didDrawCell, so the computed row height always matches what's actually drawn.
+    function analyzeContentHeight(cause, cm) {
+      let y = pad + lineH
+      if (cause) {
+        y += lineH
+        const causeLines = doc.splitTextToSize(cause, analyzeMaxW)
+        y += causeLines.length * lineH + lineH * 0.6
+      }
+      if (cm) {
+        y += lineH
+        const cmLines = doc.splitTextToSize(cm, analyzeMaxW)
+        y += cmLines.length * lineH
+      }
+      // bottom padding + buffer for the last line's descender
+      return y + pad + lineH * 0.5
+    }
+
     // Pre-compute the row height each report's Cause/C-M text actually needs,
     // so autoTable reserves enough space instead of clipping the manually-drawn text.
     doc.setFontSize(FS)
     const rowHeights = chunkReports.map(r => {
       const cause = (r.cause || '').trim()
       const cm    = (r.countermeasure || '').trim()
-      let neededH = pad * 2
-
-      if (cause) {
-        const causeLines = doc.splitTextToSize(cause, analyzeMaxW)
-        neededH += lineH + causeLines.length * lineH + lineH * 0.6
-      }
-      if (cm) {
-        const cmLines = doc.splitTextToSize(cm, analyzeMaxW)
-        neededH += lineH + cmLines.length * lineH
-      }
-
+      const neededH = analyzeContentHeight(cause, cm)
       return Math.max(minRowH, neededH)
     })
 
