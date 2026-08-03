@@ -121,7 +121,7 @@ export async function exportToPDF(reports, options = {}) {
   const startY    = titleBarH + 2
 
   // ── Title header (drawn once per page) ─────────────────────────────────────
-  function drawTitleBar() {
+  /*function drawTitleBar() {
     doc.setFillColor(28, 28, 28)
     doc.rect(0, 0, PAGE_W, titleBarH, 'F')
     doc.setTextColor(255, 255, 255)
@@ -131,7 +131,7 @@ export async function exportToPDF(reports, options = {}) {
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(FS - 0.5)
     doc.text(`Generated: ${new Date().toLocaleString('en-GB')}`, PAGE_W - MARGIN, titleBarH * 0.65, { align: 'right' })
-  }
+  }*/
 
   // ── Pre-load images ──────────────────────────────────────────────────────
   const allImages = await Promise.all(
