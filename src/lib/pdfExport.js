@@ -216,6 +216,7 @@ export async function exportToPDF(reports, options = {}) {
 
     autoTable(doc, {
       startY,
+      rowPageBreak: 'avoid',
       head: [
         [
           { content: 'No',      rowSpan: 2 },
