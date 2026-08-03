@@ -151,7 +151,7 @@ export async function exportToPDF(reports, options = {}) {
     process:      Math.round(13 * s),
     supplier:     Math.round(16 * s),
     progress:     Math.round(13 * s),
-    verification: Math.round(18 * s),
+    verification: Math.round(13 * s),
     analyze:      0,
   }
   const fixedW = COL.no + COL.unit + COL.date + COL.problem + COL.image +
@@ -245,7 +245,7 @@ export async function exportToPDF(reports, options = {}) {
         fillColor: [255, 255, 255],
         textColor: [0, 0, 0],
         fontStyle: 'bold',
-        fontSize: Math.max(FS - 1.5, 5),
+        fontSize: Math.max(FS - 1, 5),
         cellPadding: Math.max(0.5, scale),
         halign: 'center',
         valign: 'middle',
@@ -264,7 +264,7 @@ export async function exportToPDF(reports, options = {}) {
         [CI.date]:         { cellWidth: COL.date,          halign: 'center' },
         [CI.problem]:      { cellWidth: COL.problem },
         [CI.image]:        { cellWidth: COL.image },
-        [CI.qty]:          { cellWidth: COL.qty,           halign: 'center', valign: 'middle' },
+        [CI.qty]:          { cellWidth: COL.qty,           halign: 'center' },
         [CI.design]:       { cellWidth: COL.design,        halign: 'center' },
         [CI.process]:      { cellWidth: COL.process,       halign: 'center' },
         [CI.supplier]:     { cellWidth: COL.supplier,      halign: 'center' },
