@@ -150,8 +150,8 @@ export async function exportToPDF(reports, options = {}) {
     design:       Math.round(13 * s),
     process:      Math.round(13 * s),
     supplier:     Math.round(16 * s),
-    progress:     Math.round(13 * s),
-    verification: Math.round(18 * s),
+    progress:     Math.round(16 * s),
+    verification: Math.round(16 * s),
     analyze:      0,
   }
   const fixedW = COL.no + COL.unit + COL.date + COL.problem + COL.image +
