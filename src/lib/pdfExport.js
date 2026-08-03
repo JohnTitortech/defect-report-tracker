@@ -149,9 +149,9 @@ export async function exportToPDF(reports, options = {}) {
     qty:          Math.round(8  * s),
     design:       Math.round(13 * s),
     process:      Math.round(13 * s),
-    supplier:     Math.round(13 * s),
-    progress:     Math.round(16 * s),
-    verification: Math.round(16 * s),
+    supplier:     Math.round(16 * s),
+    progress:     Math.round(13 * s),
+    verification: Math.round(13 * s),
     analyze:      0,
   }
   const fixedW = COL.no + COL.unit + COL.date + COL.problem + COL.image +
@@ -245,7 +245,8 @@ export async function exportToPDF(reports, options = {}) {
         fillColor: [255, 255, 255],
         textColor: [0, 0, 0],
         fontStyle: 'bold',
-        fontSize: FS,
+        fontSize: Math.max(FS - 1, 5),
+        cellPadding: Math.max(0.5, scale),
         halign: 'center',
         valign: 'middle',
         lineColor: [0, 0, 0],
@@ -370,15 +371,10 @@ export async function exportToPDF(reports, options = {}) {
         if (column.index === CI.progress || column.index === CI.verification) {
           const field = column.index === CI.progress ? 'progress' : 'verification'
           const v = Math.min(4, Math.max(0, report[field] ?? 0))
-          const labelH = FS * 0.35278 + 1.5
-          const r = Math.min(cell.width, cell.height - labelH) / 2 - 1.5
+          const r = Math.min(cell.width, cell.height) / 2 - 1.5
           const cx = cell.x + cell.width / 2
-          const cy = cell.y + pad + r
+          const cy = cell.y + cell.height / 2
           drawProgressIcon(doc, v, cx, cy, r)
-          doc.setFontSize(FS - 0.5)
-          doc.setTextColor(100)
-          doc.text(PERCENT[v], cx, cell.y + cell.height - 1.5, { align: 'center' })
-          doc.setTextColor(0, 0, 0)
           return
         }
       },
