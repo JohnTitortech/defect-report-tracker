@@ -117,7 +117,7 @@ export async function exportToPDF(reports, options = {}) {
   const scale = PAGE_W / 297
 
   // Derived sizes
-  const titleBarH = Math.round(14 * scale)
+  const titleBarH = Math.round(9 * scale)
   const startY    = titleBarH + 2
 
   // ── Title header (drawn once per page) ─────────────────────────────────────
