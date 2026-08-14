@@ -269,6 +269,7 @@ export default function Dashboard() {
                     <Th w="w-12">No</Th>
                     <Th w="w-28">Unit No</Th>
                     <Th w="w-36">Images</Th>
+                    <Th className="max-w-xs">Problem</Th>
                     <Th>Cause & Countermeasure</Th>
                     <Th w="w-24 text-center">Progress</Th>
                     <Th w="w-24 text-center">Verification</Th>
@@ -383,6 +384,13 @@ function ReportRow({ report, rowNum, selected, onToggle, onEdit, onDelete, onVie
       {/* Images */}
       <td className="px-3 py-3">
         <ImageCell report={report} onView={onViewImage} />
+      </td>
+
+      {/* Problem */}
+      <td className="px-3 py-3 max-w-xs">
+        <p className="text-xs text-steel-700 dark:text-steel-300 line-clamp-2">
+          {report.problem || <span className="text-steel-300 dark:text-steel-600 italic">—</span>}
+        </p>
       </td>
 
       {/* Cause & Countermeasure */}
