@@ -63,9 +63,13 @@ export default function QuadrantProgress({ value = 0, onChange, size = 44, reado
           )
         })}
 
-        {/* Grid lines (dividers) */}
-        <line x1="50" y1="5"  x2="50" y2="95" stroke="#d1d5db" strokeWidth="1.5" className="dark:stroke-steel-600" />
-        <line x1="5"  y1="50" x2="95" y2="50" stroke="#d1d5db" strokeWidth="1.5" className="dark:stroke-steel-600" />
+        {/* Grid lines (dividers) — only shown when there are more than 2 states */}
+        {maxValue > 1 && (
+          <>
+            <line x1="50" y1="5"  x2="50" y2="95" stroke="#d1d5db" strokeWidth="1.5" className="dark:stroke-steel-600" />
+            <line x1="5"  y1="50" x2="95" y2="50" stroke="#d1d5db" strokeWidth="1.5" className="dark:stroke-steel-600" />
+          </>
+        )}
 
         {/* Outer ring */}
         <circle cx="50" cy="50" r="48" fill="none" stroke="#9ca3af" strokeWidth="2" className="dark:stroke-steel-500" />
