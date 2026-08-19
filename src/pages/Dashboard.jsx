@@ -85,13 +85,22 @@ export default function Dashboard() {
   }
 
   // ── Inline progress update ──────────────────────────────────────────────────
-  const PROGRESS_MAX = 4 // 'Action' — the final progress state
+
+  // Records a timestamp the first time progress reaches a given state (1=Plan .. 4=Action).
+  // Existing entries are never overwritten, so the full history of when each stage
+  // was first reached is preserved in Firestore — even though the UI only ever
+  // shows the timestamp for the current (most recent) state.
+  const stampProgress = (existingTimestamps, value) => {
+    if (!value) return existingTimestamps || {} // state 0 (blank) has no timestamp
+    const key = String(value)
+    if (existingTimestamps?.[key]) return existingTimestamps
+    return { ...(existingTimestamps || {}), [key]: serverTimestamp() }
+  }
+
   const updateField = async (report, field, value) => {
     const payload = { [field]: value }
-    // Stamp the completion time the moment progress first reaches its max state.
-    // Only set once — if it's already recorded, it's never overwritten again.
-    if (field === 'progress' && value === PROGRESS_MAX && !report.progressCompletedAt) {
-      payload.progressCompletedAt = serverTimestamp()
+    if (field === 'progress') {
+      payload.progressTimestamps = stampProgress(report.progressTimestamps, value)
     }
     await update(report.id, payload)
   }
@@ -99,12 +108,8 @@ export default function Dashboard() {
   // ── Save (add or edit) ──────────────────────────────────────────────────────
   const handleSave = async (form) => {
     const payload = { ...form }
-    // Same rule as inline table clicks: stamp completion time once progress
-    // reaches its max state, but never overwrite it if already recorded.
-    const alreadyCompleted = modal !== 'add' && modal?.progressCompletedAt
-    if (payload.progress === PROGRESS_MAX && !alreadyCompleted) {
-      payload.progressCompletedAt = serverTimestamp()
-    }
+    const existingTimestamps = modal !== 'add' ? modal?.progressTimestamps : null
+    payload.progressTimestamps = stampProgress(existingTimestamps, payload.progress)
     if (modal === 'add') await add(payload)
     else await update(modal.id, payload)
   }
@@ -447,7 +452,9 @@ function ReportRow({ report, rowNum, selected, onToggle, onEdit, onDelete, onVie
 
       {/* Completed — read-only, only appears once progress hits its final state */}
       <td className="px-3 py-3 text-xs text-steel-500 dark:text-steel-400 whitespace-nowrap">
-        {report.progressCompletedAt ? formatDate(report.progressCompletedAt) : ''}
+        {report.progressTimestamps?.[String(report.progress)]
+          ? formatDate(report.progressTimestamps[String(report.progress)])
+          : ''}
       </td>
 
       {/* Verification */}
