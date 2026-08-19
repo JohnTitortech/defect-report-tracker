@@ -25,7 +25,7 @@ const PATHS = [
   'M 50 50 L 5 50 A 45 45 0 0 1 50 5 Z',
 ]
 
-const PERCENT = ['0%', '25%', '50%', '75%', '100%']
+const PERCENT = ['', 'Plan', 'Do', 'Check', 'Action']
 
 export default function QuadrantProgress({ value = 0, onChange, size = 44, readonly = false }) {
   const handleClick = () => {
