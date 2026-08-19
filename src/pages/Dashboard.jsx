@@ -98,8 +98,15 @@ export default function Dashboard() {
 
   // ── Save (add or edit) ──────────────────────────────────────────────────────
   const handleSave = async (form) => {
-    if (modal === 'add') await add(form)
-    else await update(modal.id, form)
+    const payload = { ...form }
+    // Same rule as inline table clicks: stamp completion time once progress
+    // reaches its max state, but never overwrite it if already recorded.
+    const alreadyCompleted = modal !== 'add' && modal?.progressCompletedAt
+    if (payload.progress === PROGRESS_MAX && !alreadyCompleted) {
+      payload.progressCompletedAt = serverTimestamp()
+    }
+    if (modal === 'add') await add(payload)
+    else await update(modal.id, payload)
   }
 
   // ── Export ──────────────────────────────────────────────────────────────────
