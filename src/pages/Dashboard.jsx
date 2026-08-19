@@ -386,7 +386,7 @@ function ReportRow({ report, rowNum, selected, onToggle, onEdit, onDelete, onVie
       ${selected ? 'bg-blue-50/50 dark:bg-accent/5' : 'bg-white dark:bg-steel-900'}`}>
 
       {/* Checkbox */}
-      <td className="px-3 py-3">
+      <td className="px-3 py-3 align-top">
         <button onClick={onToggle}>
           {selected
             ? <CheckSquare className="w-4 h-4 text-accent" />
@@ -395,32 +395,32 @@ function ReportRow({ report, rowNum, selected, onToggle, onEdit, onDelete, onVie
       </td>
 
       {/* Row number */}
-      <td className="px-3 py-3 font-mono text-xs text-steel-400">{rowNum}</td>
+      <td className="px-3 py-3 align-top font-mono text-xs text-steel-400">{rowNum}</td>
 
       {/* Unit No */}
-      <td className="px-3 py-3 font-mono font-semibold text-steel-900 dark:text-steel-100 whitespace-nowrap">
+      <td className="px-3 py-3 align-top font-mono font-semibold text-steel-900 dark:text-steel-100 whitespace-nowrap">
         {report.unitNo || '—'}
       </td>
 
       {/* Images */}
-      <td className="px-3 py-3">
+      <td className="px-3 py-3 align-top">
         <ImageCell report={report} onView={onViewImage} />
       </td>
 
       {/* Problem */}
-      <td className="px-3 py-3 max-w-xs">
-        <p className="text-xs text-steel-700 dark:text-steel-300 line-clamp-2">
+      <td className="px-3 py-3 align-top max-w-xs">
+        <p className="text-xs text-steel-700 dark:text-steel-300 whitespace-pre-line break-words">
           {report.problem || <span className="text-steel-300 dark:text-steel-600 italic">—</span>}
         </p>
       </td>
 
       {/* Cause & Countermeasure */}
-      <td className="px-3 py-3 max-w-xs">
+      <td className="px-3 py-3 align-top max-w-xs">
         <div className="space-y-1.5">
           {report.cause && (
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-wider text-steel-400 mb-0.5">Cause</p>
-              <p className="text-xs text-steel-700 dark:text-steel-300 line-clamp-2">{report.cause}</p>
+              <p className="text-xs text-steel-700 dark:text-steel-300 whitespace-pre-line break-words">{report.cause}</p>
             </div>
           )}
           {report.cause && report.countermeasure && (
@@ -429,7 +429,7 @@ function ReportRow({ report, rowNum, selected, onToggle, onEdit, onDelete, onVie
           {report.countermeasure && (
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-wider text-steel-400 mb-0.5">Countermeasure</p>
-              <p className="text-xs text-steel-700 dark:text-steel-300 line-clamp-2">{report.countermeasure}</p>
+              <p className="text-xs text-steel-700 dark:text-steel-300 whitespace-pre-line break-words">{report.countermeasure}</p>
             </div>
           )}
           {!report.cause && !report.countermeasure && (
@@ -439,38 +439,38 @@ function ReportRow({ report, rowNum, selected, onToggle, onEdit, onDelete, onVie
       </td>
 
       {/* Created */}
-      <td className="px-3 py-3 text-xs text-steel-500 dark:text-steel-400 whitespace-nowrap">
+      <td className="px-3 py-3 align-top text-xs text-steel-500 dark:text-steel-400 whitespace-nowrap">
         {formatDate(report.createdAt)}
       </td>
 
       {/* Progress */}
-      <td className="px-3 py-3 text-center">
+      <td className="px-3 py-3 align-top text-center">
         <div className="flex justify-center">
           <QuadrantProgress value={report.progress ?? 0} onChange={onProgressChange} size={40} />
         </div>
       </td>
 
       {/* Completed — read-only, only appears once progress hits its final state */}
-      <td className="px-3 py-3 text-xs text-steel-500 dark:text-steel-400 whitespace-nowrap">
+      <td className="px-3 py-3 align-top text-xs text-steel-500 dark:text-steel-400 whitespace-nowrap">
         {report.progressTimestamps?.[String(report.progress)]
           ? formatDate(report.progressTimestamps[String(report.progress)])
           : ''}
       </td>
 
       {/* Verification */}
-      <td className="px-3 py-3 text-center">
+      <td className="px-3 py-3 align-top text-center">
         <div className="flex justify-center">
           <QuadrantProgress value={report.verification ?? 0} onChange={onVerificationChange} size={40} labels={['NG', 'OK']} maxValue={1} />
         </div>
       </td>
 
       {/* Updated */}
-      <td className="px-3 py-3 text-xs text-steel-500 dark:text-steel-400 whitespace-nowrap">
+      <td className="px-3 py-3 align-top text-xs text-steel-500 dark:text-steel-400 whitespace-nowrap">
         {formatDateTime(report.updatedAt)}
       </td>
 
       {/* Actions */}
-      <td className="px-3 py-3">
+      <td className="px-3 py-3 align-top">
         <div className="flex items-center justify-center gap-1">
           <button onClick={onEdit}   className="icon-btn" title="Edit">
             <Pencil className="w-3.5 h-3.5" />
