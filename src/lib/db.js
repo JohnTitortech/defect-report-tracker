@@ -22,6 +22,7 @@ export async function createReport(data) {
     cause:            data.cause            || '',
     countermeasure:   data.countermeasure   || '',
     progress:         data.progress         ?? 0,
+    progressCompletedAt: data.progressCompletedAt || null,
     verification:     data.verification     ?? 0,
     layoutType:       data.layoutType       || 'single',
     positionImageUrl: data.positionImageUrl || null,
