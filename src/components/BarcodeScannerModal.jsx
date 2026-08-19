@@ -2,17 +2,23 @@
  * BarcodeScannerModal — opens the device camera and scans a barcode/QR code.
  * On a successful scan, calls onScan(decodedText) and closes itself.
  *
- * Uses html5-qrcode, which supports common 1D barcodes (CODE128, EAN, UPC, etc.)
- * as well as QR codes — good coverage for typical "unit number" labels.
+ * Uses html5-qrcode. Restricted to CODE_39 and CODE_128 — the two symbologies
+ * most commonly used on VIN / unit-number labels — to avoid the scanner
+ * misinterpreting the barcode as another format and returning garbled text.
+ * A scan is only accepted once the same value is read twice in a row, to
+ * filter out one-off misreads on worn or low-contrast labels.
  */
 import React, { useEffect, useRef, useState } from 'react'
 import { X, Camera as CameraIcon } from 'lucide-react'
-import { Html5Qrcode } from 'html5-qrcode'
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode'
 
 const SCANNER_ELEMENT_ID = 'barcode-scanner-viewport'
+const CONFIRM_READS = 2 // number of consecutive identical reads required before accepting
 
 export default function BarcodeScannerModal({ open, onClose, onScan }) {
   const scannerRef = useRef(null)
+  const lastValueRef = useRef('')
+  const matchCountRef = useRef(0)
   const [error, setError] = useState('')
   const [starting, setStarting] = useState(true)
 
@@ -22,8 +28,16 @@ export default function BarcodeScannerModal({ open, onClose, onScan }) {
     let cancelled = false
     setError('')
     setStarting(true)
+    lastValueRef.current = ''
+    matchCountRef.current = 0
 
-    const scanner = new Html5Qrcode(SCANNER_ELEMENT_ID, /* verbose= */ false)
+    const scanner = new Html5Qrcode(SCANNER_ELEMENT_ID, {
+      verbose: false,
+      formatsToSupport: [
+        Html5QrcodeSupportedFormats.CODE_39,
+        Html5QrcodeSupportedFormats.CODE_128,
+      ],
+    })
     scannerRef.current = scanner
 
     scanner
@@ -31,13 +45,25 @@ export default function BarcodeScannerModal({ open, onClose, onScan }) {
         { facingMode: 'environment' }, // rear camera on mobile
         {
           fps: 10,
-          qrbox: { width: 260, height: 160 }, // wide box suits 1D barcodes
+          qrbox: { width: 320, height: 140 }, // wide box suits long 1D barcodes like VINs
+          experimentalFeatures: { useBarCodeDetectorIfSupported: true },
         },
         (decodedText) => {
           if (cancelled) return
-          cancelled = true
-          onScan(decodedText)
-          stopScanner()
+
+          const cleaned = decodedText.trim().toUpperCase()
+          if (cleaned === lastValueRef.current) {
+            matchCountRef.current += 1
+          } else {
+            lastValueRef.current = cleaned
+            matchCountRef.current = 1
+          }
+
+          if (matchCountRef.current >= CONFIRM_READS) {
+            cancelled = true
+            onScan(cleaned)
+            stopScanner()
+          }
         },
         () => {
           // per-frame "not found" callback — ignore, this fires constantly while scanning
