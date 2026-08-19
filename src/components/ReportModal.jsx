@@ -340,7 +340,7 @@ export default function ReportModal({ report = null, user, onSave, onClose }) {
               </div>
               <div className="flex flex-col items-center gap-2">
                 <label className="field-label text-center">Countermeasure Verification</label>
-                <QuadrantProgress value={form.verification} onChange={v => set('verification', v)} size={56} />
+                <QuadrantProgress value={form.verification} onChange={v => set('verification', v)} size={56} labels={['NG', 'OK']} maxValue={1} />
               </div>
             </div>
 
