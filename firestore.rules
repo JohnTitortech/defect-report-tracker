@@ -1,9 +1,78 @@
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /{document=**} {
-      allow read, write: if false;
+    function hasRole() {
+      return request.auth != null &&
+        exists(
+          /databases/$(database)/documents/USER_ROLES/$(request.auth.token.email)
+        );
+    }
+    function getRole() {
+      return get(
+        /databases/$(database)/documents/USER_ROLES/$(request.auth.token.email)
+      ).data.role;
+    }
+    match /USER_ROLES/{email} {
+      allow read:
+        if request.auth != null &&
+        request.auth.token.email == email;
+      allow write:
+        if false;
+    }
+    match /reports/{doc} {
+      allow read:
+        if request.auth != null &&
+        hasRole();
+      allow create:
+        if request.auth != null &&
+        (
+          getRole() == 'QC' ||
+          getRole() == 'MASTER'
+        );
+      allow update:
+        if request.auth != null &&
+        (
+          getRole() == 'MASTER' ||
+          getRole() == 'QC' ||
+          (
+            getRole() == 'ASSY' &&
+            request.resource.data.date ==
+              resource.data.date &&
+            request.resource.data.unitNo ==
+              resource.data.unitNo &&
+            request.resource.data.qty ==
+              resource.data.qty &&
+            request.resource.data.problem ==
+              resource.data.problem &&
+            request.resource.data.verification ==
+              resource.data.verification &&
+            request.resource.data.positionImageUrl ==
+              resource.data.positionImageUrl &&
+            request.resource.data.detailImageUrl ==
+              resource.data.detailImageUrl
+          )
+        );
+      allow delete:
+        if request.auth != null &&
+  			(getRole() == 'MASTER' || getRole() == 'QC');
+    }
+    match /models/{doc} {
+      allow read:
+        if request.auth != null &&
+        hasRole();
+      allow write:
+        if request.auth != null &&
+        (
+          getRole() == 'QC' ||
+          getRole() == 'MASTER'
+        );
+    }
+    match /models/{modelId}/lots/{lotId} {
+      allow read:
+        if request.auth != null && hasRole();
+      allow write:
+        if request.auth != null &&
+        (getRole() == 'QC' || getRole() == 'MASTER');
     }
   }
 }
