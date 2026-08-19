@@ -7,6 +7,7 @@ import {
   Sun, Moon, LogOut, ShieldCheck, ChevronUp, ChevronDown,
   RefreshCw, X, CheckSquare, Square, Car, Hash, Wrench,
 } from 'lucide-react'
+import { serverTimestamp } from 'firebase/firestore'
 import { useAuth }      from '../hooks/useAuth'
 import { useReports }   from '../hooks/useReports'
 import { useDarkMode }  from '../hooks/useDarkMode'
@@ -84,8 +85,15 @@ export default function Dashboard() {
   }
 
   // ── Inline progress update ──────────────────────────────────────────────────
+  const PROGRESS_MAX = 4 // 'Action' — the final progress state
   const updateField = async (report, field, value) => {
-    await update(report.id, { [field]: value })
+    const payload = { [field]: value }
+    // Stamp the completion time the moment progress first reaches its max state.
+    // Only set once — if it's already recorded, it's never overwritten again.
+    if (field === 'progress' && value === PROGRESS_MAX && !report.progressCompletedAt) {
+      payload.progressCompletedAt = serverTimestamp()
+    }
+    await update(report.id, payload)
   }
 
   // ── Save (add or edit) ──────────────────────────────────────────────────────
@@ -273,6 +281,7 @@ export default function Dashboard() {
                     <Th>Cause & Countermeasure</Th>
                     <Th w="w-24">Created</Th>
                     <Th w="w-24 text-center">Progress</Th>
+                    <Th w="w-28">Completed</Th>
                     <Th w="w-24 text-center">Verification</Th>
                     <Th w="w-28">Updated</Th>
                     <Th w="w-20 text-center">Actions</Th>
@@ -427,6 +436,11 @@ function ReportRow({ report, rowNum, selected, onToggle, onEdit, onDelete, onVie
         <div className="flex justify-center">
           <QuadrantProgress value={report.progress ?? 0} onChange={onProgressChange} size={40} />
         </div>
+      </td>
+
+      {/* Completed — read-only, only appears once progress hits its final state */}
+      <td className="px-3 py-3 text-xs text-steel-500 dark:text-steel-400 whitespace-nowrap">
+        {report.progressCompletedAt ? formatDate(report.progressCompletedAt) : ''}
       </td>
 
       {/* Verification */}
