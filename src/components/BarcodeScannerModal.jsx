@@ -45,7 +45,14 @@ export default function BarcodeScannerModal({ open, onClose, onScan }) {
         { facingMode: 'environment' }, // rear camera on mobile
         {
           fps: 10,
-          qrbox: { width: 320, height: 140 }, // wide box suits long 1D barcodes like VINs
+          // Dynamic box: use most of the camera's width so long barcodes (e.g. 17-char VINs)
+          // fit inside the scan area instead of being cropped by a fixed-size box.
+          qrbox: (viewfinderWidth, viewfinderHeight) => {
+            const width = Math.floor(viewfinderWidth * 0.92)
+            const height = Math.min(160, Math.floor(viewfinderHeight * 0.35))
+            return { width, height }
+          },
+          aspectRatio: 1.5, // wider viewfinder helps fit long barcodes end-to-end
           experimentalFeatures: { useBarCodeDetectorIfSupported: true },
         },
         (decodedText) => {
@@ -127,7 +134,10 @@ export default function BarcodeScannerModal({ open, onClose, onScan }) {
               )}
               <div id={SCANNER_ELEMENT_ID} className="w-full rounded-lg overflow-hidden bg-black" />
               <p className="text-xs text-steel-400 mt-2 text-center">
-                Arahkan kamera ke barcode / QR code unit number.
+                Arahkan kamera ke barcode / QR code unit number.<br />
+                <span className="text-steel-400/80">
+                  Untuk barcode panjang (VIN): jauhkan kamera sedikit agar seluruh barcode masuk kotak, dan pastikan barcode lurus horizontal.
+                </span>
               </p>
             </>
           )}
