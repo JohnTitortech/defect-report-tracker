@@ -40,62 +40,71 @@ export default function BarcodeScannerModal({ open, onClose, onScan }) {
     })
     scannerRef.current = scanner
 
-    scanner
-      .start(
-        {
-          // Request the highest resolution the device's rear camera supports.
-          // Browsers clamp "ideal" to the closest resolution the hardware actually
-          // offers, so asking for a very high number is a safe way to get the max.
-          facingMode: 'environment',
-          width: { ideal: 4096 },
-          height: { ideal: 2160 },
-        },
-        {
-          fps: 10,
-          // Dynamic box: use most of the camera's width so long barcodes (e.g. 17-char VINs)
-          // fit inside the scan area instead of being cropped by a fixed-size box.
-          qrbox: (viewfinderWidth, viewfinderHeight) => {
-            const width = Math.floor(viewfinderWidth * 0.92)
-            const height = Math.min(160, Math.floor(viewfinderHeight * 0.35))
-            return { width, height }
-          },
-          aspectRatio: 1.5, // wider viewfinder helps fit long barcodes end-to-end
-          experimentalFeatures: { useBarCodeDetectorIfSupported: true },
-        },
-        (decodedText) => {
-          if (cancelled) return
+    const scanCallback = (decodedText) => {
+      if (cancelled) return
 
-          const cleaned = decodedText.trim().toUpperCase()
-          if (cleaned === lastValueRef.current) {
-            matchCountRef.current += 1
-          } else {
-            lastValueRef.current = cleaned
-            matchCountRef.current = 1
-          }
+      const cleaned = decodedText.trim().toUpperCase()
+      if (cleaned === lastValueRef.current) {
+        matchCountRef.current += 1
+      } else {
+        lastValueRef.current = cleaned
+        matchCountRef.current = 1
+      }
 
-          if (matchCountRef.current >= CONFIRM_READS) {
-            cancelled = true
-            onScan(cleaned)
-            stopScanner()
-          }
-        },
-        () => {
-          // per-frame "not found" callback — ignore, this fires constantly while scanning
+      if (matchCountRef.current >= CONFIRM_READS) {
+        cancelled = true
+        onScan(cleaned)
+        stopScanner()
+      }
+    }
+    const errorCallback = () => {
+      // per-frame "not found" callback — ignore, this fires constantly while scanning
+    }
+    const scanConfig = {
+      fps: 10,
+      // Dynamic box: use most of the camera's width so long barcodes (e.g. 17-char VINs)
+      // fit inside the scan area instead of being cropped by a fixed-size box.
+      qrbox: (viewfinderWidth, viewfinderHeight) => {
+        const width = Math.floor(viewfinderWidth * 0.92)
+        const height = Math.min(160, Math.floor(viewfinderHeight * 0.35))
+        return { width, height }
+      },
+      aspectRatio: 1.5, // wider viewfinder helps fit long barcodes end-to-end
+      experimentalFeatures: { useBarCodeDetectorIfSupported: true },
+    }
+
+    // Try the highest resolution first; if the device/browser rejects it,
+    // fall back to a lighter constraint set instead of failing outright.
+    const cameraConfigs = [
+      { facingMode: 'environment', width: { ideal: 4096 }, height: { ideal: 2160 } },
+      { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } },
+      { facingMode: 'environment' },
+    ]
+
+    let lastErr = null
+    ;(async () => {
+      for (const camConfig of cameraConfigs) {
+        if (cancelled) return
+        try {
+          await scanner.start(camConfig, scanConfig, scanCallback, errorCallback)
+          if (!cancelled) setStarting(false)
+          return
+        } catch (err) {
+          lastErr = err
+          // NotAllowedError means the user denied permission — retrying with a
+          // different resolution won't help, so stop trying immediately.
+          if (err?.name === 'NotAllowedError') break
         }
-      )
-      .then(() => {
-        if (!cancelled) setStarting(false)
-      })
-      .catch((err) => {
-        if (!cancelled) {
-          setStarting(false)
-          setError(
-            err?.name === 'NotAllowedError'
-              ? 'Izin kamera ditolak. Aktifkan izin kamera di browser untuk scan barcode.'
-              : 'Tidak bisa mengakses kamera. Pastikan device memiliki kamera dan tidak dipakai aplikasi lain.'
-          )
-        }
-      })
+      }
+      if (!cancelled) {
+        setStarting(false)
+        setError(
+          lastErr?.name === 'NotAllowedError'
+            ? 'Izin kamera ditolak. Aktifkan izin kamera di pengaturan browser untuk scan barcode.'
+            : `Tidak bisa mengakses kamera${lastErr?.message ? `: ${lastErr.message}` : ''}. Pastikan device memiliki kamera dan tidak sedang dipakai aplikasi lain.`
+        )
+      }
+    })()
 
     function stopScanner() {
       const s = scannerRef.current
