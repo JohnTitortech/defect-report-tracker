@@ -42,7 +42,14 @@ export default function BarcodeScannerModal({ open, onClose, onScan }) {
 
     scanner
       .start(
-        { facingMode: 'environment' }, // rear camera on mobile
+        {
+          // Request the highest resolution the device's rear camera supports.
+          // Browsers clamp "ideal" to the closest resolution the hardware actually
+          // offers, so asking for a very high number is a safe way to get the max.
+          facingMode: 'environment',
+          width: { ideal: 4096 },
+          height: { ideal: 2160 },
+        },
         {
           fps: 10,
           // Dynamic box: use most of the camera's width so long barcodes (e.g. 17-char VINs)
