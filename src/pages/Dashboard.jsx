@@ -432,7 +432,7 @@ function ReportRow({ report, rowNum, selected, onToggle, onEdit, onDelete, onVie
       {/* Verification */}
       <td className="px-3 py-3 text-center">
         <div className="flex justify-center">
-          <QuadrantProgress value={report.verification ?? 0} onChange={onVerificationChange} size={40} />
+          <QuadrantProgress value={report.verification ?? 0} onChange={onVerificationChange} size={40} labels={['NG', 'OK']} maxValue={1} />
         </div>
       </td>
 
