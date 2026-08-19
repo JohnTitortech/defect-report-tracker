@@ -27,10 +27,11 @@ const PATHS = [
 
 const PERCENT = ['', 'Plan', 'Do', 'Check', 'Action']
 
-export default function QuadrantProgress({ value = 0, onChange, size = 44, readonly = false }) {
+export default function QuadrantProgress({ value = 0, onChange, size = 44, readonly = false, labels = PERCENT, maxValue = 4 }) {
+  const steps = maxValue + 1 // number of distinct states (0..maxValue)
   const handleClick = () => {
     if (readonly || !onChange) return
-    onChange((value + 1) % 5)
+    onChange((value + 1) % steps)
   }
 
   return (
@@ -41,22 +42,26 @@ export default function QuadrantProgress({ value = 0, onChange, size = 44, reado
         viewBox="0 0 100 100"
         onClick={handleClick}
         className={`rounded-full ${!readonly ? 'cursor-pointer hover:opacity-80 transition-opacity' : ''}`}
-        title={readonly ? PERCENT[value] : `Click to advance (${PERCENT[value]})`}
-        aria-label={`Progress: ${PERCENT[value]}`}
+        title={readonly ? labels[value] : `Click to advance (${labels[value]})`}
+        aria-label={`Progress: ${labels[value]}`}
         role={readonly ? 'img' : 'button'}
       >
         {/* Outer circle background */}
         <circle cx="50" cy="50" r="48" fill="white" stroke="#d1d5db" strokeWidth="2" className="dark:fill-steel-800 dark:stroke-steel-600" />
 
         {/* Filled quadrants */}
-        {PATHS.map((d, i) => (
-          <path
-            key={i}
-            d={d}
-            fill={i < value ? '#111827' : 'transparent'}
-            className={i < value ? 'dark:fill-steel-100' : ''}
-          />
-        ))}
+        {PATHS.map((d, i) => {
+          const filledCount = Math.round((value / maxValue) * PATHS.length)
+          const isFilled = i < filledCount
+          return (
+            <path
+              key={i}
+              d={d}
+              fill={isFilled ? '#111827' : 'transparent'}
+              className={isFilled ? 'dark:fill-steel-100' : ''}
+            />
+          )
+        })}
 
         {/* Grid lines (dividers) */}
         <line x1="50" y1="5"  x2="50" y2="95" stroke="#d1d5db" strokeWidth="1.5" className="dark:stroke-steel-600" />
@@ -66,7 +71,7 @@ export default function QuadrantProgress({ value = 0, onChange, size = 44, reado
         <circle cx="50" cy="50" r="48" fill="none" stroke="#9ca3af" strokeWidth="2" className="dark:stroke-steel-500" />
       </svg>
       <span className="text-[10px] font-mono text-steel-500 dark:text-steel-400 leading-none">
-        {PERCENT[value]}
+        {labels[value]}
       </span>
     </div>
   )
