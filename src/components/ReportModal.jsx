@@ -5,6 +5,7 @@ import React, { useState } from 'react'
 import { X, ImageIcon, Camera } from 'lucide-react'
 import QuadrantProgress from './QuadrantProgress'
 import ImageUploader from './ImageUploader'
+import BarcodeScannerModal from './BarcodeScannerModal'
 import { useModels } from '../hooks/useModels'
 import { useLotsByModelName } from '../hooks/useLots'
 import { usePartsByModelName } from '../hooks/useParts'
@@ -43,6 +44,7 @@ export default function ReportModal({ report = null, user, onSave, onClose }) {
   const { parts } = usePartsByModelName(form.model)
   const [showImages, setShowImages] = useState(false)
   const [saving, setSaving]   = useState(false)
+  const [showScanner, setShowScanner] = useState(false)
 
   const set = (key, val) => setForm(f => {
     if (key === 'model') return { ...f, model: val, lot: '', part: '' }
@@ -156,16 +158,36 @@ export default function ReportModal({ report = null, user, onSave, onClose }) {
             {/* Unit Number */}
             <div>
               <label className="field-label">Unit Number *</label>
-              <input
-                type="text"
-                className="field-input font-mono"
-                placeholder="e.g. UNIT-001, MC-102, PRESS-05"
-                value={form.unitNo}
-                onChange={e => set('unitNo', e.target.value)}
-                required
-                autoFocus
-              />
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  className="field-input font-mono flex-1"
+                  placeholder="e.g. UNIT-001, MC-102, PRESS-05"
+                  value={form.unitNo}
+                  onChange={e => set('unitNo', e.target.value)}
+                  required
+                  autoFocus
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowScanner(true)}
+                  className="shrink-0 px-3 rounded-lg border border-steel-200 dark:border-steel-700 hover:bg-steel-50 dark:hover:bg-steel-800 flex items-center justify-center"
+                  title="Scan barcode dengan kamera"
+                  aria-label="Scan barcode Unit Number dengan kamera"
+                >
+                  <Camera className="w-4 h-4 text-accent" />
+                </button>
+              </div>
             </div>
+
+            <BarcodeScannerModal
+              open={showScanner}
+              onClose={() => setShowScanner(false)}
+              onScan={(text) => {
+                set('unitNo', text)
+                setShowScanner(false)
+              }}
+            />
 
             {/* ── Input Part ─────────────────────────────────────────── */}
             {isQC && (
