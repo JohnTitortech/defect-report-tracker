@@ -12,14 +12,6 @@ service cloud.firestore {
         /databases/$(database)/documents/USER_ROLES/$(request.auth.token.email)
       ).data.role;
     }
-    // progressCompletedAt is a write-once audit field: once set, it can never be
-    // changed or cleared by anyone (MASTER, QC, or ASSY) — including via direct
-    // API/database access, not just the app UI.
-    function progressCompletedAtLocked() {
-      return resource.data.get('progressCompletedAt', null) == null ||
-        request.resource.data.get('progressCompletedAt', null) ==
-          resource.data.get('progressCompletedAt', null);
-    }
     match /USER_ROLES/{email} {
       allow read:
         if request.auth != null &&
@@ -39,7 +31,6 @@ service cloud.firestore {
         );
       allow update:
         if request.auth != null &&
-        progressCompletedAtLocked() &&
         (
           getRole() == 'MASTER' ||
           getRole() == 'QC' ||
