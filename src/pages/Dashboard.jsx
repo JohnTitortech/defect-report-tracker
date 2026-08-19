@@ -23,8 +23,8 @@ import { useLotsByModelName } from '../hooks/useLots'
 import PartManager      from '../components/PartManager'
 import toast            from 'react-hot-toast'
 
-const PROGRESS_OPTS = ['All', '0%', '25%', '50%', '75%', '100%']
-const PROGRESS_VAL  = { 'All': null, '0%': 0, '25%': 1, '50%': 2, '75%': 3, '100%': 4 }
+const PROGRESS_OPTS = ['All', 'Plan', 'Do', 'Check', 'Action']
+const PROGRESS_VAL  = { 'All': null, 'Plan': 1, 'Do': 2, 'Check': 3, 'Action': 4 }
 
 export default function Dashboard() {
   const { user, logOut }   = useAuth()
@@ -271,9 +271,9 @@ export default function Dashboard() {
                     <Th w="w-36">Images</Th>
                     <Th className="max-w-xs">Problem</Th>
                     <Th>Cause & Countermeasure</Th>
+                    <Th w="w-24">Created</Th>
                     <Th w="w-24 text-center">Progress</Th>
                     <Th w="w-24 text-center">Verification</Th>
-                    <Th w="w-24">Created</Th>
                     <Th w="w-28">Updated</Th>
                     <Th w="w-20 text-center">Actions</Th>
                   </tr>
@@ -417,6 +417,11 @@ function ReportRow({ report, rowNum, selected, onToggle, onEdit, onDelete, onVie
         </div>
       </td>
 
+      {/* Created */}
+      <td className="px-3 py-3 text-xs text-steel-500 dark:text-steel-400 whitespace-nowrap">
+        {formatDate(report.createdAt)}
+      </td>
+
       {/* Progress */}
       <td className="px-3 py-3 text-center">
         <div className="flex justify-center">
@@ -429,11 +434,6 @@ function ReportRow({ report, rowNum, selected, onToggle, onEdit, onDelete, onVie
         <div className="flex justify-center">
           <QuadrantProgress value={report.verification ?? 0} onChange={onVerificationChange} size={40} />
         </div>
-      </td>
-
-      {/* Created */}
-      <td className="px-3 py-3 text-xs text-steel-500 dark:text-steel-400 whitespace-nowrap">
-        {formatDate(report.createdAt)}
       </td>
 
       {/* Updated */}
