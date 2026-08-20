@@ -9,6 +9,7 @@ import BarcodeScannerModal from './BarcodeScannerModal'
 import { useModels } from '../hooks/useModels'
 import { useLotsByModelName } from '../hooks/useLots'
 import { usePartsByModelName } from '../hooks/useParts'
+import { usePics } from '../hooks/usePics'
 
 // Helper: returns today's date as YYYY-MM-DD string (local time)
 function todayStr() {
@@ -23,7 +24,7 @@ const RESPONSIBLE_OPTS = ['Process', 'Design', 'Supplier']
 
 const EMPTY = {
   date: todayStr(),
-  unitNo: '', problem: '', qty: 1, responsible: [], cause: '', countermeasure: '',
+  unitNo: '', problem: '', pic: '', qty: 1, responsible: [], cause: '', countermeasure: '',
   progress: 0, verification: 0,
   layoutType: null, positionImageUrl: null, detailImageUrl: null,
   model: '',
@@ -38,6 +39,7 @@ export default function ReportModal({ report = null, user, onSave, onClose }) {
     user?.role === 'MASTER'
   
   const { models } = useModels()
+  const { pics }   = usePics()
   const isEdit = !!report
   const [form, setForm]       = useState(isEdit ? { date: report.date || todayStr(), qty: report.qty ?? 1, responsible: report.responsible || [], ...report } : { ...EMPTY })
   const { lots } = useLotsByModelName(form.model)
@@ -279,6 +281,23 @@ export default function ReportModal({ report = null, user, onSave, onClose }) {
                 onChange={e => set('problem', e.target.value)}
                 placeholder="Describe the problem"
               />
+
+              {/* PIC — who filled in this Problem (QC). Shown right under Problem,
+                  not as a separate table column, and excluded from PDF export. */}
+              <div className="mt-2">
+                <label className="field-label">PIC</label>
+                <select
+                  className="field-input"
+                  value={form.pic || ''}
+                  disabled={!isQC}
+                  onChange={e => set('pic', e.target.value)}
+                >
+                  <option value="">Select PIC…</option>
+                  {pics.map(p => (
+                    <option key={p.id} value={p.name}>{p.name}</option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             {/* Qty */}
