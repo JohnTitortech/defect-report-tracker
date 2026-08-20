@@ -5,7 +5,7 @@ import React, { useState, useMemo } from 'react'
 import {
   Plus, Search, Filter, Download, Trash2, Pencil,
   Sun, Moon, LogOut, ShieldCheck, ChevronUp, ChevronDown,
-  RefreshCw, X, CheckSquare, Square, Car, Hash, Wrench,
+  RefreshCw, X, CheckSquare, Square, Car, Hash, Wrench, UserCog,
 } from 'lucide-react'
 import { serverTimestamp } from 'firebase/firestore'
 import { useAuth }      from '../hooks/useAuth'
@@ -18,6 +18,7 @@ import ReportModal      from '../components/ReportModal'
 import ConfirmDialog    from '../components/ConfirmDialog'
 import ImageModal       from '../components/ImageModal'
 import ModelManager     from '../components/ModelManager'
+import PicManager       from '../components/PicManager'
 import { useModels }    from '../hooks/useModels'
 import LotManager       from '../components/LotManager'
 import { useLotsByModelName } from '../hooks/useLots'
@@ -39,6 +40,7 @@ export default function Dashboard() {
   const [imgSrc,   setImgSrc]   = useState(null)  // full-screen image src
   const [exportDialog, setExportDialog] = useState(false)
   const [showModelMgr, setShowModelMgr] = useState(false)
+  const [showPicMgr,   setShowPicMgr]   = useState(false)
   const [showPartMgr,  setShowPartMgr]  = useState(false)
   const [showLotMgr,   setShowLotMgr]   = useState(false)
 
@@ -217,6 +219,11 @@ export default function Dashboard() {
               </button>
             )}
             {(user?.role === 'MASTER' || user?.role === 'QC') && (
+              <button onClick={() => setShowPicMgr(true)} className="icon-btn" title="Manage PIC">
+                <UserCog className="w-4 h-4" />
+              </button>
+            )}
+            {(user?.role === 'MASTER' || user?.role === 'QC') && (
               <button onClick={() => setShowPartMgr(true)} className="icon-btn" title="Manage Parts">
                 <Wrench className="w-4 h-4" />
               </button>
@@ -349,6 +356,10 @@ export default function Dashboard() {
         <ModelManager onClose={() => setShowModelMgr(false)} />
       )}
 
+      {showPicMgr && (
+        <PicManager onClose={() => setShowPicMgr(false)} />
+      )}
+
       {showPartMgr && (
         <PartManager onClose={() => setShowPartMgr(false)} />
       )}
@@ -412,6 +423,11 @@ function ReportRow({ report, rowNum, selected, onToggle, onEdit, onDelete, onVie
         <p className="text-xs text-steel-700 dark:text-steel-300 whitespace-pre-line break-words">
           {report.problem || <span className="text-steel-300 dark:text-steel-600 italic">—</span>}
         </p>
+        {report.pic && (
+          <p className="text-[10px] text-steel-400 mt-1">
+            PIC: <span className="font-medium text-steel-500 dark:text-steel-400">{report.pic}</span>
+          </p>
+        )}
       </td>
 
       {/* Cause & Countermeasure */}
