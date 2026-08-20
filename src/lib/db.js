@@ -17,6 +17,7 @@ export async function createReport(data) {
     model:            data.model            || '',
     lot:              data.lot              || '',
     problem:          data.problem          || '',
+    pic:              data.pic              || '',
     qty:              data.qty              ?? 1,
     responsible:      data.responsible      || [],
     cause:            data.cause            || '',
