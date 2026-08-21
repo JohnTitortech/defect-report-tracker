@@ -5,7 +5,7 @@ import React, { useState, useMemo } from 'react'
 import {
   Plus, Search, Filter, Download, Trash2, Pencil,
   Sun, Moon, LogOut, ShieldCheck, ChevronUp, ChevronDown,
-  RefreshCw, X, CheckSquare, Square, Car, Hash, Wrench, UserCog,
+  RefreshCw, X, CheckSquare, Square, Car, Hash, Wrench, UserCog, UserCheck,
 } from 'lucide-react'
 import { serverTimestamp } from 'firebase/firestore'
 import { useAuth }      from '../hooks/useAuth'
@@ -19,6 +19,7 @@ import ConfirmDialog    from '../components/ConfirmDialog'
 import ImageModal       from '../components/ImageModal'
 import ModelManager     from '../components/ModelManager'
 import PicManager       from '../components/PicManager'
+import PicPenjawabManager from '../components/PicPenjawabManager'
 import { useModels }    from '../hooks/useModels'
 import LotManager       from '../components/LotManager'
 import { useLotsByModelName } from '../hooks/useLots'
@@ -41,6 +42,7 @@ export default function Dashboard() {
   const [exportDialog, setExportDialog] = useState(false)
   const [showModelMgr, setShowModelMgr] = useState(false)
   const [showPicMgr,   setShowPicMgr]   = useState(false)
+  const [showPicPenjawabMgr, setShowPicPenjawabMgr] = useState(false)
   const [showPartMgr,  setShowPartMgr]  = useState(false)
   const [showLotMgr,   setShowLotMgr]   = useState(false)
 
@@ -219,8 +221,13 @@ export default function Dashboard() {
               </button>
             )}
             {(user?.role === 'MASTER' || user?.role === 'QC') && (
-              <button onClick={() => setShowPicMgr(true)} className="icon-btn" title="Manage PIC">
+              <button onClick={() => setShowPicMgr(true)} className="icon-btn" title="Manage PIC Check">
                 <UserCog className="w-4 h-4" />
+              </button>
+            )}
+            {(user?.role === 'MASTER' || user?.role === 'QC') && (
+              <button onClick={() => setShowPicPenjawabMgr(true)} className="icon-btn" title="Manage PIC Penjawab">
+                <UserCheck className="w-4 h-4" />
               </button>
             )}
             {(user?.role === 'MASTER' || user?.role === 'QC') && (
@@ -360,6 +367,10 @@ export default function Dashboard() {
         <PicManager onClose={() => setShowPicMgr(false)} />
       )}
 
+      {showPicPenjawabMgr && (
+        <PicPenjawabManager onClose={() => setShowPicPenjawabMgr(false)} />
+      )}
+
       {showPartMgr && (
         <PartManager onClose={() => setShowPartMgr(false)} />
       )}
@@ -425,7 +436,7 @@ function ReportRow({ report, rowNum, selected, onToggle, onEdit, onDelete, onVie
         </p>
         {report.pic && (
           <p className="text-[10px] text-steel-400 mt-1">
-            PIC: <span className="font-medium text-steel-500 dark:text-steel-400">{report.pic}</span>
+            PIC Check: <span className="font-medium text-steel-500 dark:text-steel-400">{report.pic}</span>
           </p>
         )}
       </td>
@@ -450,6 +461,11 @@ function ReportRow({ report, rowNum, selected, onToggle, onEdit, onDelete, onVie
           )}
           {!report.cause && !report.countermeasure && (
             <span className="text-xs text-steel-300 dark:text-steel-600 italic">No details yet</span>
+          )}
+          {report.picPenjawab && (
+            <p className="text-[10px] text-steel-400 pt-0.5">
+              PIC Penjawab: <span className="font-medium text-steel-500 dark:text-steel-400">{report.picPenjawab}</span>
+            </p>
           )}
         </div>
       </td>
