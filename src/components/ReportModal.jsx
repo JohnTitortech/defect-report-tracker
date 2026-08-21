@@ -10,6 +10,7 @@ import { useModels } from '../hooks/useModels'
 import { useLotsByModelName } from '../hooks/useLots'
 import { usePartsByModelName } from '../hooks/useParts'
 import { usePics } from '../hooks/usePics'
+import { usePicPenjawab } from '../hooks/usePicPenjawab'
 
 // Helper: returns today's date as YYYY-MM-DD string (local time)
 function todayStr() {
@@ -40,6 +41,7 @@ export default function ReportModal({ report = null, user, onSave, onClose }) {
   
   const { models } = useModels()
   const { pics }   = usePics()
+  const { picPenjawabList } = usePicPenjawab()
   const isEdit = !!report
   const [form, setForm]       = useState(isEdit ? { date: report.date || todayStr(), qty: report.qty ?? 1, responsible: report.responsible || [], ...report } : { ...EMPTY })
   const { lots } = useLotsByModelName(form.model)
@@ -282,15 +284,15 @@ export default function ReportModal({ report = null, user, onSave, onClose }) {
                 placeholder="Describe the problem"
               />
 
-              {/* PIC — who filled in this Problem (QC). Shown right under Problem,
+              {/* PIC Check — who filled in this Problem (QC). Shown right under Problem,
                   not as a separate table column, and excluded from PDF export.
                   Rendered as inline choice buttons (not a dropdown) since the
-                  PIC list is expected to stay short. */}
+                  PIC Check list is expected to stay short. */}
               <div className="mt-2">
-                <label className="field-label">PIC</label>
+                <label className="field-label">PIC Check</label>
                 <div className="flex items-center gap-2 flex-wrap mt-1">
                   {pics.length === 0 && (
-                    <p className="text-xs text-steel-400">Belum ada PIC. Tambahkan lewat menu Manage PIC.</p>
+                    <p className="text-xs text-steel-400">Belum ada PIC Check. Tambahkan lewat menu Manage PIC Check.</p>
                   )}
                   {pics.map(p => {
                     const isActive = form.pic === p.name
@@ -365,15 +367,15 @@ export default function ReportModal({ report = null, user, onSave, onClose }) {
               )}
             </div>
 
-            {/* PIC Penjawab — same mechanism as PIC, but editable by ASSY as well
-                (not gated by isQC), placed right under Responsible. */}
+            {/* PIC Penjawab — separate master list from PIC Check (its own collection),
+                editable by ASSY as well (not gated by isQC), placed right under Responsible. */}
             <div>
               <label className="field-label">PIC Penjawab</label>
               <div className="flex items-center gap-2 flex-wrap mt-1">
-                {pics.length === 0 && (
-                  <p className="text-xs text-steel-400">Belum ada PIC. Tambahkan lewat menu Manage PIC.</p>
+                {picPenjawabList.length === 0 && (
+                  <p className="text-xs text-steel-400">Belum ada PIC Penjawab. Tambahkan lewat menu Manage PIC Penjawab.</p>
                 )}
-                {pics.map(p => {
+                {picPenjawabList.map(p => {
                   const isActive = form.picPenjawab === p.name
                   return (
                     <button
