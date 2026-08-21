@@ -283,20 +283,34 @@ export default function ReportModal({ report = null, user, onSave, onClose }) {
               />
 
               {/* PIC — who filled in this Problem (QC). Shown right under Problem,
-                  not as a separate table column, and excluded from PDF export. */}
+                  not as a separate table column, and excluded from PDF export.
+                  Rendered as inline choice buttons (not a dropdown) since the
+                  PIC list is expected to stay short. */}
               <div className="mt-2">
                 <label className="field-label">PIC</label>
-                <select
-                  className="field-input"
-                  value={form.pic || ''}
-                  disabled={!isQC}
-                  onChange={e => set('pic', e.target.value)}
-                >
-                  <option value="">Select PIC…</option>
-                  {pics.map(p => (
-                    <option key={p.id} value={p.name}>{p.name}</option>
-                  ))}
-                </select>
+                <div className="flex items-center gap-2 flex-wrap mt-1">
+                  {pics.length === 0 && (
+                    <p className="text-xs text-steel-400">Belum ada PIC. Tambahkan lewat menu Manage PIC.</p>
+                  )}
+                  {pics.map(p => {
+                    const isActive = form.pic === p.name
+                    return (
+                      <button
+                        key={p.id}
+                        type="button"
+                        disabled={!isQC}
+                        onClick={() => set('pic', isActive ? '' : p.name)}
+                        className={`px-3 py-2 rounded-lg text-sm font-medium border transition-all whitespace-nowrap disabled:opacity-50 disabled:cursor-not-allowed
+                          ${isActive
+                            ? 'bg-accent border-accent text-white'
+                            : 'bg-steel-50 dark:bg-steel-800 border-steel-200 dark:border-steel-700 text-steel-600 dark:text-steel-300 hover:border-steel-400 dark:hover:border-steel-500'
+                          }`}
+                      >
+                        {p.name}
+                      </button>
+                    )
+                  })}
+                </div>
               </div>
             </div>
 
