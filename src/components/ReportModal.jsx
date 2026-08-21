@@ -24,7 +24,7 @@ const RESPONSIBLE_OPTS = ['Process', 'Design', 'Supplier']
 
 const EMPTY = {
   date: todayStr(),
-  unitNo: '', problem: '', pic: '', qty: 1, responsible: [], cause: '', countermeasure: '',
+  unitNo: '', problem: '', pic: '', picPenjawab: '', qty: 1, responsible: [], cause: '', countermeasure: '',
   progress: 0, verification: 0,
   layoutType: null, positionImageUrl: null, detailImageUrl: null,
   model: '',
@@ -363,6 +363,34 @@ export default function ReportModal({ report = null, user, onSave, onClose }) {
               {(form.responsible || []).length === 0 && (
                 <p className="text-xs text-steel-400 mt-1.5">Pilih satu atau lebih pihak yang bertanggung jawab</p>
               )}
+            </div>
+
+            {/* PIC Penjawab — same mechanism as PIC, but editable by ASSY as well
+                (not gated by isQC), placed right under Responsible. */}
+            <div>
+              <label className="field-label">PIC Penjawab</label>
+              <div className="flex items-center gap-2 flex-wrap mt-1">
+                {pics.length === 0 && (
+                  <p className="text-xs text-steel-400">Belum ada PIC. Tambahkan lewat menu Manage PIC.</p>
+                )}
+                {pics.map(p => {
+                  const isActive = form.picPenjawab === p.name
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => set('picPenjawab', isActive ? '' : p.name)}
+                      className={`px-3 py-2 rounded-lg text-sm font-medium border transition-all whitespace-nowrap
+                        ${isActive
+                          ? 'bg-accent border-accent text-white'
+                          : 'bg-steel-50 dark:bg-steel-800 border-steel-200 dark:border-steel-700 text-steel-600 dark:text-steel-300 hover:border-steel-400 dark:hover:border-steel-500'
+                        }`}
+                    >
+                      {p.name}
+                    </button>
+                  )
+                })}
+              </div>
             </div>
             
             {/* Cause */}
