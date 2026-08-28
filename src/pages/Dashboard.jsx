@@ -712,7 +712,7 @@ function ExportDialog({ reports, models, selected, onConfirm, onCancel }) {
           <button
             type="button"
             disabled={count === 0}
-            onClick={() => onConfirm(targets, { pageSize, orientation, rowsPerPage })}
+            onClick={() => onConfirm(targets, { pageSize, orientation, rowsPerPage, model: expModel, lot: expLot })}
             className="btn-primary flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Download className="w-4 h-4" /> Download
