@@ -104,7 +104,7 @@ function drawContained(doc, img, x, y, boxW, boxH) {
  * @param {{ pageSize: 'a4'|'a3', orientation: 'landscape'|'portrait', rowsPerPage?: 'auto'|number }} options
  */
 export async function exportToPDF(reports, options = {}) {
-  const { pageSize = 'a4', orientation = 'landscape', rowsPerPage = 'auto' } = options
+  const { pageSize = 'a4', orientation = 'landscape', rowsPerPage = 'auto', model = 'All', lot = 'All' } = options
   const cfgKey = `${pageSize}-${orientation}`
   const cfg = PAGE_CONFIGS[cfgKey] || PAGE_CONFIGS['a4-landscape']
 
@@ -120,14 +120,40 @@ export async function exportToPDF(reports, options = {}) {
   const titleBarH = Math.round(9 * scale)
   const startY    = titleBarH + 2
 
+  // ── Header title text ────────────────────────────────────────────────────
+  // Base label, with the chosen Model/Lot appended in quotes when a specific
+  // model was picked in the export dialog — e.g. Temuan Problem Final
+  // Inspection "Fortuner Ambulance Lot 13". Falls back to the base label
+  // alone when exporting across all models (or a plain selection).
+  function buildHeaderTitle() {
+    const base = 'Temuan Problem Final Inspection'
+    if (model && model !== 'All') {
+      const lotPart = (lot && lot !== 'All') ? ` Lot ${lot}` : ''
+      return `${base} "${model}${lotPart}"`
+    }
+    return base
+  }
+  const headerTitle = buildHeaderTitle()
+
+  // Auto-shrink the title font if it's too long to fit the title bar width
+  // (the dynamic model/lot title can be much longer than the old static label).
+  doc.setFont('helvetica', 'bold')
+  let headerFontSize = titleFontSize
+  doc.setFontSize(headerFontSize)
+  const maxTitleWidth = PAGE_W - MARGIN * 2
+  while (doc.getTextWidth(headerTitle) > maxTitleWidth && headerFontSize > 6) {
+    headerFontSize -= 0.5
+    doc.setFontSize(headerFontSize)
+  }
+
   // ── Title header (drawn once per page) ─────────────────────────────────────
   function drawTitleBar() {
     doc.setFillColor(28, 28, 28)
     doc.rect(0, 0, PAGE_W, titleBarH, 'F')
     doc.setTextColor(255, 255, 255)
     doc.setFont('helvetica', 'bold')
-    doc.setFontSize(titleFontSize)
-    doc.text('DEFECT REPORT', MARGIN, titleBarH * 0.65)
+    doc.setFontSize(headerFontSize)
+    doc.text(headerTitle, MARGIN, titleBarH * 0.65)
   }
 
   // ── Pre-load images ──────────────────────────────────────────────────────
