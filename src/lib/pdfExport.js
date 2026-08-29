@@ -129,7 +129,7 @@ export async function exportToPDF(reports, options = {}) {
     const base = 'Temuan Problem Final Inspection'
     if (model && model !== 'All') {
       const lotPart = (lot && lot !== 'All') ? ` Lot ${lot}` : ''
-      return `${base} "${model}${lotPart}"`
+      return `${base} ${model}${lotPart}`
     }
     return base
   }
