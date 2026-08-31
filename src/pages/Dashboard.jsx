@@ -336,7 +336,7 @@ export default function Dashboard() {
                       </button>
                     </Th>
                     <Th w="w-12">No</Th>
-                    <Th w="w-28">Unit No</Th>
+                    <Th w="w-28">Frame No</Th>
                     <Th w="w-36">Images</Th>
                     <Th className="max-w-xs">Problem</Th>
                     <Th>Cause & Countermeasure</Th>
