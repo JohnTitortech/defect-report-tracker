@@ -217,17 +217,22 @@ export async function exportToPDF(reports, options = {}) {
 
     // Mirrors the exact vertical layout used when drawing Cause/C-M text in
     // didDrawCell, so the computed row height always matches what's actually drawn.
-    function analyzeContentHeight(cause, cm) {
+    function analyzeContentHeight(cause, cmBefore, cmAfter) {
       let y = pad + lineH
       if (cause) {
         y += lineH
         const causeLines = doc.splitTextToSize(cause, analyzeMaxW)
         y += causeLines.length * lineH + lineH * 0.6
       }
-      if (cm) {
+      if (cmBefore) {
         y += lineH
-        const cmLines = doc.splitTextToSize(cm, analyzeMaxW)
-        y += cmLines.length * lineH
+        const beforeLines = doc.splitTextToSize(cmBefore, analyzeMaxW)
+        y += beforeLines.length * lineH + lineH * 0.6
+      }
+      if (cmAfter) {
+        y += lineH
+        const afterLines = doc.splitTextToSize(cmAfter, analyzeMaxW)
+        y += afterLines.length * lineH
       }
       // bottom padding + buffer for the last line's descender
       return y + pad + lineH * 0.5
@@ -237,9 +242,10 @@ export async function exportToPDF(reports, options = {}) {
     // so autoTable reserves enough space instead of clipping the manually-drawn text.
     doc.setFontSize(FS)
     const rowHeights = chunkReports.map(r => {
-      const cause = (r.cause || '').trim()
-      const cm    = (r.countermeasure || '').trim()
-      const neededH = analyzeContentHeight(cause, cm)
+      const cause     = (r.cause || '').trim()
+      const cmBefore  = (r.countermeasureBefore || r.countermeasure || '').trim()
+      const cmAfter   = (r.countermeasureAfter || '').trim()
+      const neededH = analyzeContentHeight(cause, cmBefore, cmAfter)
       return Math.max(minRowH, neededH)
     })
 
@@ -358,8 +364,9 @@ export async function exportToPDF(reports, options = {}) {
 
         // Analyze / Countermeasure
         if (column.index === CI.analyze) {
-          const cause = (report.cause || '').trim()
-          const cm    = (report.countermeasure || '').trim()
+          const cause    = (report.cause || '').trim()
+          const cmBefore = (report.countermeasureBefore || report.countermeasure || '').trim()
+          const cmAfter  = (report.countermeasureAfter || '').trim()
           const x = cell.x + pad
           const maxW = cell.width - pad * 2
           let curY = cell.y + pad + lineH
@@ -376,18 +383,30 @@ export async function exportToPDF(reports, options = {}) {
             curY += causeLines.length * lineH + lineH * 0.6
           }
 
-          if (cm) {
+          if (cmBefore) {
             doc.setFont('helvetica', 'bold')
             doc.setFontSize(FS)
             doc.setTextColor(0, 0, 0)
-            doc.text('C/M :', x, curY)
+            doc.text('C/M Before :', x, curY)
             curY += lineH
             doc.setFont('helvetica', 'normal')
-            const cmLines = doc.splitTextToSize(cm, maxW)
-            doc.text(cmLines, x, curY)
+            const beforeLines = doc.splitTextToSize(cmBefore, maxW)
+            doc.text(beforeLines, x, curY)
+            curY += beforeLines.length * lineH + lineH * 0.6
           }
 
-          if (!cause && !cm) {
+          if (cmAfter) {
+            doc.setFont('helvetica', 'bold')
+            doc.setFontSize(FS)
+            doc.setTextColor(0, 0, 0)
+            doc.text('C/M After :', x, curY)
+            curY += lineH
+            doc.setFont('helvetica', 'normal')
+            const afterLines = doc.splitTextToSize(cmAfter, maxW)
+            doc.text(afterLines, x, curY)
+          }
+
+          if (!cause && !cmBefore && !cmAfter) {
             doc.setFontSize(FS - 0.5)
             doc.setTextColor(170, 170, 170)
             doc.text('—', x, cell.y + cell.height / 2, { baseline: 'middle' })
