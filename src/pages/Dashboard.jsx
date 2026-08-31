@@ -5,7 +5,7 @@ import React, { useState, useMemo } from 'react'
 import {
   Plus, Search, Filter, Download, Trash2, Pencil,
   Sun, Moon, LogOut, ShieldCheck, ChevronUp, ChevronDown,
-  RefreshCw, X, CheckSquare, Square, Car, Hash, Wrench, UserCog, UserCheck,
+  RefreshCw, X, CheckSquare, Square, Car, Hash, Wrench, UserCog, UserCheck, ListChecks,
 } from 'lucide-react'
 import { serverTimestamp } from 'firebase/firestore'
 import { useAuth }      from '../hooks/useAuth'
@@ -20,7 +20,9 @@ import ImageModal       from '../components/ImageModal'
 import ModelManager     from '../components/ModelManager'
 import PicManager       from '../components/PicManager'
 import PicPenjawabManager from '../components/PicPenjawabManager'
+import InspectionTypeManager from '../components/InspectionTypeManager'
 import { useModels }    from '../hooks/useModels'
+import { useInspectionTypes } from '../hooks/useInspectionTypes'
 import LotManager       from '../components/LotManager'
 import { useLotsByModelName } from '../hooks/useLots'
 import PartManager      from '../components/PartManager'
@@ -33,6 +35,7 @@ export default function Dashboard() {
   const { user, logOut }   = useAuth()
   const { reports, loading, reload, add, update, remove } = useReports()
   const { models } = useModels()
+  const { inspectionTypes } = useInspectionTypes()
   const [dark, setDark]    = useDarkMode()
 
   // Modals
@@ -43,6 +46,7 @@ export default function Dashboard() {
   const [showModelMgr, setShowModelMgr] = useState(false)
   const [showPicMgr,   setShowPicMgr]   = useState(false)
   const [showPicPenjawabMgr, setShowPicPenjawabMgr] = useState(false)
+  const [showInspectionTypeMgr, setShowInspectionTypeMgr] = useState(false)
   const [showPartMgr,  setShowPartMgr]  = useState(false)
   const [showLotMgr,   setShowLotMgr]   = useState(false)
 
@@ -50,6 +54,7 @@ export default function Dashboard() {
   const [search,   setSearch]   = useState('')
   const [filterP,  setFilterP]  = useState('All')
   const [filterM,  setFilterM]  = useState('All')
+  const [filterIT, setFilterIT] = useState('All')
   const [filterL,  setFilterL]  = useState('All')
 
   const { lots } = useLotsByModelName(filterM !== 'All' ? filterM : null)
@@ -63,6 +68,9 @@ export default function Dashboard() {
     if (filterM !== 'All') {
       list = list.filter(r => r.model === filterM)
     }
+    if (filterIT !== 'All') {
+      list = list.filter(r => r.inspectionType === filterIT)
+    }
     if (filterL !== 'All') {
       list = list.filter(r => r.lot === filterL)
     }
@@ -74,7 +82,7 @@ export default function Dashboard() {
       list = list.filter(r => r.progress === PROGRESS_VAL[filterP])
     }
     return list
-  }, [reports, search, filterP, filterM, filterL])
+  }, [reports, search, filterP, filterM, filterIT, filterL])
 
   // ── Selection helpers ───────────────────────────────────────────────────────
   const toggleSelect = id => setSelected(s => {
@@ -183,6 +191,20 @@ export default function Dashboard() {
             </select>
           </div>
 
+          {/* Inspection Type filter */}
+          <div className="relative hidden sm:block">
+            <select
+              value={filterIT}
+              onChange={e => setFilterIT(e.target.value)}
+              className="px-3 pr-8 py-2 text-sm bg-steel-100 dark:bg-steel-800 border border-steel-200 dark:border-steel-700
+                         rounded-lg text-steel-900 dark:text-steel-100 appearance-none
+                         focus:outline-none focus:ring-2 focus:ring-accent/30 focus:border-accent transition-all"
+            >
+              <option value="All">All Inspection Types</option>
+              {inspectionTypes.map(t => <option key={t.id} value={t.name}>{t.name}</option>)}
+            </select>
+          </div>
+
           {/* Model filter */}
           <div className="relative hidden sm:block">
             <select
@@ -218,6 +240,11 @@ export default function Dashboard() {
             {(user?.role === 'MASTER' || user?.role === 'QC') && (
               <button onClick={() => setShowModelMgr(true)} className="icon-btn" title="Manage Models">
                 <Car className="w-4 h-4" />
+              </button>
+            )}
+            {(user?.role === 'MASTER' || user?.role === 'QC') && (
+              <button onClick={() => setShowInspectionTypeMgr(true)} className="icon-btn" title="Manage Inspection Type">
+                <ListChecks className="w-4 h-4" />
               </button>
             )}
             {(user?.role === 'MASTER' || user?.role === 'QC') && (
@@ -264,6 +291,9 @@ export default function Dashboard() {
           <span className="font-mono">{user?.email}</span>
           <span>•</span>
           <span>{filtered.length} of {reports.length} reports</span>
+          {filterIT !== 'All' && (
+            <><span>•</span><span className="text-accent font-medium">{filterIT}</span></>
+          )}
           {filterM !== 'All' && (
             <><span>•</span><span className="text-accent font-medium">{filterM}</span></>
           )}
@@ -363,6 +393,10 @@ export default function Dashboard() {
         <ModelManager onClose={() => setShowModelMgr(false)} />
       )}
 
+      {showInspectionTypeMgr && (
+        <InspectionTypeManager onClose={() => setShowInspectionTypeMgr(false)} />
+      )}
+
       {showPicMgr && (
         <PicManager onClose={() => setShowPicMgr(false)} />
       )}
@@ -383,6 +417,7 @@ export default function Dashboard() {
         <ExportDialog
           reports={reports}
           models={models}
+          inspectionTypes={inspectionTypes}
           selected={selected}
           onConfirm={(targets, opts) => handleExportConfirm(targets, opts)}
           onCancel={() => setExportDialog(false)}
@@ -553,15 +588,23 @@ function ImageCell({ report, onView }) {
 }
 
 // ── Export Format Dialog ───────────────────────────────────────────────────────
-function ExportDialog({ reports, models, selected, onConfirm, onCancel }) {
+function ExportDialog({ reports, models, inspectionTypes, selected, onConfirm, onCancel }) {
   const hasSelection = selected.size > 0
 
   const [source,      setSource]      = React.useState(hasSelection ? 'selected' : 'all')
+  const [expIT,       setExpIT]       = React.useState('All')
   const [expModel,    setExpModel]    = React.useState('All')
   const [expLot,      setExpLot]      = React.useState('All')
   const [pageSize,    setPageSize]    = React.useState('a4')
   const [orientation, setOrientation] = React.useState('landscape')
   const [rowsPerPage, setRowsPerPage] = React.useState('auto')
+
+  // Distinct Inspection Type names present in reports (fallback to the managed list too)
+  const inspectionTypeNames = React.useMemo(() => {
+    const fromReports = reports.map(r => r.inspectionType).filter(Boolean)
+    const fromTypes   = inspectionTypes.map(t => t.name).filter(Boolean)
+    return Array.from(new Set([...fromReports, ...fromTypes])).sort()
+  }, [reports, inspectionTypes])
 
   // Distinct model names present in reports (fallback to models list too, in case a model has 0 reports yet)
   const modelNames = React.useMemo(() => {
@@ -582,10 +625,11 @@ function ExportDialog({ reports, models, selected, onConfirm, onCancel }) {
   const targets = React.useMemo(() => {
     if (source === 'selected') return reports.filter(r => selected.has(r.id))
     let list = reports
+    if (expIT    !== 'All') list = list.filter(r => r.inspectionType === expIT)
     if (expModel !== 'All') list = list.filter(r => r.model === expModel)
     if (expLot   !== 'All') list = list.filter(r => r.lot === expLot)
     return list
-  }, [source, expModel, expLot, reports, selected])
+  }, [source, expIT, expModel, expLot, reports, selected])
 
   const count = targets.length
 
@@ -629,6 +673,20 @@ function ExportDialog({ reports, models, selected, onConfirm, onCancel }) {
             </div>
           </div>
 
+          {/* Inspection Type picker — only relevant when not exporting a fixed selection */}
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-steel-400 mb-2">Inspection Type</p>
+            <select
+              value={expIT}
+              disabled={source === 'selected'}
+              onChange={e => setExpIT(e.target.value)}
+              className={selectCls}
+            >
+              <option value="All">All Inspection Types</option>
+              {inspectionTypeNames.map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
+          </div>
+
           {/* Model & Lot pickers — only relevant when not exporting a fixed selection */}
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -659,6 +717,7 @@ function ExportDialog({ reports, models, selected, onConfirm, onCancel }) {
 
           <p className="text-sm text-steel-500 dark:text-steel-400">
             Exporting <span className="font-semibold text-steel-900 dark:text-steel-100">{count}</span> report{count !== 1 ? 's' : ''}
+            {source !== 'selected' && expIT    !== 'All' && <> · <span className="text-accent font-medium">{expIT}</span></>}
             {source !== 'selected' && expModel !== 'All' && <> · <span className="text-accent font-medium">{expModel}</span></>}
             {source !== 'selected' && expLot   !== 'All' && <> · <span className="text-accent font-medium">Lot {expLot}</span></>}
           </p>
@@ -712,7 +771,7 @@ function ExportDialog({ reports, models, selected, onConfirm, onCancel }) {
           <button
             type="button"
             disabled={count === 0}
-            onClick={() => onConfirm(targets, { pageSize, orientation, rowsPerPage, model: expModel, lot: expLot })}
+            onClick={() => onConfirm(targets, { pageSize, orientation, rowsPerPage, model: expModel, lot: expLot, inspectionType: expIT })}
             className="btn-primary flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Download className="w-4 h-4" /> Download
