@@ -187,18 +187,27 @@ export async function exportToPDF(reports, options = {}) {
     supplier:     Math.round(16 * s),
     progress:     Math.round(16 * s),
     verification: Math.round(16 * s),
-    cmImage:      Math.round(imgColW * s),
-    analyze:      0,
+    cause:        0,
+    before:       0,
+    after:        0,
   }
   const fixedW = COL.no + COL.unit + COL.date + COL.problem + COL.image +
                  COL.qty + COL.design + COL.process + COL.supplier +
-                 COL.progress + COL.verification + COL.cmImage
-  COL.analyze = usableW - fixedW
+                 COL.progress + COL.verification
+  // Remaining space is split between Cause (root-cause text) and the
+  // Countermeasure Before / After columns, which each hold their own text
+  // AND image stacked together — mirroring how the dashboard shows them
+  // side-by-side as one combined block per side, instead of splitting text
+  // and images into separate columns.
+  const remainder = usableW - fixedW
+  COL.cause  = Math.round(remainder * 0.22)
+  COL.before = Math.round(remainder * 0.39)
+  COL.after  = remainder - COL.cause - COL.before
 
   const CI = {
     no: 0, unit: 1, date: 2, problem: 3, image: 4,
     qty: 5, design: 6, process: 7, supplier: 8,
-    analyze: 9, cmImage: 10, progress: 11, verification: 12,
+    cause: 9, before: 10, after: 11, progress: 12, verification: 13,
   }
 
   function fmtDate(r) {
@@ -216,48 +225,53 @@ export async function exportToPDF(reports, options = {}) {
   function renderChunk(chunkReports, chunkImages, chunkCmImages, numberOffset) {
     const bodyRows = chunkReports.map((r, i) => [
       numberOffset + i + 1, r.unitNo || '—', fmtDate(r), r.problem || '—',
-      '', r.qty ?? 1, '', '', '', '', '', '', '',
+      '', r.qty ?? 1, '', '', '', '', '', '', '', '',
     ])
 
     const pad = Math.max(1, 1.5 * scale)
-    const analyzeMaxW = COL.analyze - pad * 2
+    const causeMaxW  = COL.cause  - pad * 2
+    const beforeMaxW = COL.before - pad * 2
+    const afterMaxW  = COL.after  - pad * 2
 
-    // Mirrors the exact vertical layout used when drawing Cause/C-M text in
-    // didDrawCell, so the computed row height always matches what's actually drawn.
-    function analyzeContentHeight(cause, cmBefore, cmAfter) {
-      let y = pad + lineH
-      if (cause) {
-        y += lineH
-        const causeLines = doc.splitTextToSize(cause, analyzeMaxW)
-        y += causeLines.length * lineH + lineH * 0.6
-      }
-      if (cmBefore) {
-        y += lineH
-        const beforeLines = doc.splitTextToSize(cmBefore, analyzeMaxW)
-        y += beforeLines.length * lineH + lineH * 0.6
-      }
-      if (cmAfter) {
-        y += lineH
-        const afterLines = doc.splitTextToSize(cmAfter, analyzeMaxW)
-        y += afterLines.length * lineH
-      }
-      // bottom padding + buffer for the last line's descender
+    // Mirrors the exact vertical layout used when drawing the Cause text in
+    // didDrawCell, so the computed row height always matches what's drawn.
+    function causeContentHeight(cause) {
+      if (!cause) return minRowH
+      let y = pad + lineH + lineH
+      const causeLines = doc.splitTextToSize(cause, causeMaxW)
+      y += causeLines.length * lineH
       return y + pad + lineH * 0.5
     }
 
-    // Pre-compute the row height each report's Cause/C-M text actually needs,
-    // so autoTable reserves enough space instead of clipping the manually-drawn text.
+    // Mirrors the C/M Before / After layout: label + text, then the image
+    // stacked below within the same column — text and image live together,
+    // just like the dashboard's Before/After blocks.
+    function cmContentHeight(text, maxW, colW, hasImage) {
+      let y = pad + lineH
+      if (text) {
+        y += lineH
+        const lines = doc.splitTextToSize(text, maxW)
+        y += lines.length * lineH + lineH * 0.6
+      }
+      if (hasImage) {
+        // reserve a roughly square image box under the text
+        y += colW * 0.7
+      }
+      return y + pad
+    }
+
+    // Pre-compute the row height each report's Cause/C-M text+image actually
+    // needs, so autoTable reserves enough space instead of clipping content.
     doc.setFontSize(FS)
     const rowHeights = chunkReports.map((r, i) => {
       const cause     = (r.cause || '').trim()
       const cmBefore  = (r.countermeasureBefore || r.countermeasure || '').trim()
       const cmAfter   = (r.countermeasureAfter || '').trim()
-      const neededH = analyzeContentHeight(cause, cmBefore, cmAfter)
-      // C/M images are stacked (Before on top of After) in a column COL.cmImage
-      // wide — reserve enough height for both thumbnails plus their labels.
       const [cmBeforeImg, cmAfterImg] = chunkCmImages[i] || []
-      const cmImgNeeded = (cmBeforeImg || cmAfterImg) ? COL.cmImage * 1.3 : 0
-      return Math.max(minRowH, neededH, cmImgNeeded)
+      const causeNeeded  = causeContentHeight(cause)
+      const beforeNeeded = cmContentHeight(cmBefore, beforeMaxW, COL.before, !!cmBeforeImg)
+      const afterNeeded  = cmContentHeight(cmAfter, afterMaxW, COL.after, !!cmAfterImg)
+      return Math.max(minRowH, causeNeeded, beforeNeeded, afterNeeded)
     })
 
     autoTable(doc, {
@@ -272,12 +286,12 @@ export async function exportToPDF(reports, options = {}) {
           { content: 'Image',   rowSpan: 2 },
           { content: 'Qty',     rowSpan: 2 },
           { content: 'Responsible', colSpan: 3, styles: { halign: 'center' } },
-          { content: 'Analyze/Countermeasure', rowSpan: 2 },
-          { content: 'C/M Images', rowSpan: 2 },
+          { content: 'Cause', rowSpan: 2 },
+          { content: 'Countermeasure', colSpan: 2, styles: { halign: 'center' } },
           { content: 'Progress',     rowSpan: 2 },
           { content: 'Verification', rowSpan: 2 },
         ],
-        ['Design', 'Process', 'Supplier'],
+        ['Design', 'Process', 'Supplier', 'Before', 'After'],
       ],
       body: bodyRows,
       theme: 'grid',
@@ -315,8 +329,9 @@ export async function exportToPDF(reports, options = {}) {
         [CI.design]:       { cellWidth: COL.design,        halign: 'center' },
         [CI.process]:      { cellWidth: COL.process,       halign: 'center' },
         [CI.supplier]:     { cellWidth: COL.supplier,      halign: 'center' },
-        [CI.analyze]:      { cellWidth: COL.analyze },
-        [CI.cmImage]:      { cellWidth: COL.cmImage },
+        [CI.cause]:        { cellWidth: COL.cause },
+        [CI.before]:       { cellWidth: COL.before },
+        [CI.after]:        { cellWidth: COL.after },
         [CI.progress]:     { cellWidth: COL.progress,      halign: 'center' },
         [CI.verification]: { cellWidth: COL.verification,  halign: 'center' },
       },
@@ -375,11 +390,9 @@ export async function exportToPDF(reports, options = {}) {
           return
         }
 
-        // Analyze / Countermeasure
-        if (column.index === CI.analyze) {
-          const cause    = (report.cause || '').trim()
-          const cmBefore = (report.countermeasureBefore || report.countermeasure || '').trim()
-          const cmAfter  = (report.countermeasureAfter || '').trim()
+        // Cause (root cause only — Before/After now live in their own columns)
+        if (column.index === CI.cause) {
+          const cause = (report.cause || '').trim()
           const x = cell.x + pad
           const maxW = cell.width - pad * 2
           let curY = cell.y + pad + lineH
@@ -393,33 +406,7 @@ export async function exportToPDF(reports, options = {}) {
             doc.setFont('helvetica', 'normal')
             const causeLines = doc.splitTextToSize(cause, maxW)
             doc.text(causeLines, x, curY)
-            curY += causeLines.length * lineH + lineH * 0.6
-          }
-
-          if (cmBefore) {
-            doc.setFont('helvetica', 'bold')
-            doc.setFontSize(FS)
-            doc.setTextColor(0, 0, 0)
-            doc.text('C/M Before :', x, curY)
-            curY += lineH
-            doc.setFont('helvetica', 'normal')
-            const beforeLines = doc.splitTextToSize(cmBefore, maxW)
-            doc.text(beforeLines, x, curY)
-            curY += beforeLines.length * lineH + lineH * 0.6
-          }
-
-          if (cmAfter) {
-            doc.setFont('helvetica', 'bold')
-            doc.setFontSize(FS)
-            doc.setTextColor(0, 0, 0)
-            doc.text('C/M After :', x, curY)
-            curY += lineH
-            doc.setFont('helvetica', 'normal')
-            const afterLines = doc.splitTextToSize(cmAfter, maxW)
-            doc.text(afterLines, x, curY)
-          }
-
-          if (!cause && !cmBefore && !cmAfter) {
+          } else {
             doc.setFontSize(FS - 0.5)
             doc.setTextColor(170, 170, 170)
             doc.text('—', x, cell.y + cell.height / 2, { baseline: 'middle' })
@@ -428,35 +415,44 @@ export async function exportToPDF(reports, options = {}) {
           return
         }
 
-        // C/M Images — Before (top) / After (bottom), stacked
-        if (column.index === CI.cmImage) {
+        // Countermeasure Before / After — text and image combined in one
+        // column per side, matching the dashboard's side-by-side blocks.
+        if (column.index === CI.before || column.index === CI.after) {
+          const isBefore = column.index === CI.before
+          const label = isBefore ? 'C/M Before :' : 'C/M After :'
+          const text = (isBefore
+            ? (report.countermeasureBefore || report.countermeasure || '')
+            : (report.countermeasureAfter || '')).trim()
           const [cmBeforeImg, cmAfterImg] = chunkCmImages[i] || []
-          const halfH = (cell.height - pad * 3) / 2
-          const labelFS = Math.max(FS - 1.5, 5)
-          const labelH = labelFS * 0.35278 + 1.2
-          const boxH = Math.max(0, halfH - labelH)
+          const img = isBefore ? cmBeforeImg : cmAfterImg
 
-          doc.setFont('helvetica', 'normal')
-          doc.setFontSize(labelFS)
-          doc.setTextColor(80, 80, 80)
-          doc.text('Before', cell.x + pad, cell.y + pad + labelH - 1)
-          if (cmBeforeImg) {
-            drawContained(doc, cmBeforeImg, cell.x + pad, cell.y + pad + labelH, cell.width - pad * 2, boxH)
-          } else {
-            doc.setTextColor(170, 170, 170)
-            doc.text('No image', cell.x + cell.width / 2, cell.y + pad + labelH + boxH / 2, { align: 'center', baseline: 'middle' })
-          }
+          const x = cell.x + pad
+          const maxW = cell.width - pad * 2
+          let curY = cell.y + pad + lineH
 
-          const y2 = cell.y + pad + halfH + pad
-          doc.setTextColor(80, 80, 80)
-          doc.text('After', cell.x + pad, y2 + labelH - 1)
-          if (cmAfterImg) {
-            drawContained(doc, cmAfterImg, cell.x + pad, y2 + labelH, cell.width - pad * 2, boxH)
-          } else {
-            doc.setTextColor(170, 170, 170)
-            doc.text('No image', cell.x + cell.width / 2, y2 + labelH + boxH / 2, { align: 'center', baseline: 'middle' })
-          }
+          doc.setFont('helvetica', 'bold')
+          doc.setFontSize(FS)
           doc.setTextColor(0, 0, 0)
+          doc.text(label, x, curY)
+          curY += lineH
+
+          if (text) {
+            doc.setFont('helvetica', 'normal')
+            const lines = doc.splitTextToSize(text, maxW)
+            doc.text(lines, x, curY)
+            curY += lines.length * lineH + lineH * 0.6
+          }
+
+          const boxY = curY
+          const boxH = Math.max(0, cell.y + cell.height - pad - boxY)
+          if (img) {
+            drawContained(doc, img, x, boxY, maxW, boxH)
+          } else if (boxH > lineH) {
+            doc.setFontSize(FS - 0.5)
+            doc.setTextColor(170, 170, 170)
+            doc.text('No image', cell.x + cell.width / 2, boxY + boxH / 2, { align: 'center', baseline: 'middle' })
+            doc.setTextColor(0, 0, 0)
+          }
           return
         }
 
