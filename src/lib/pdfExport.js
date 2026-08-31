@@ -104,7 +104,8 @@ function drawContained(doc, img, x, y, boxW, boxH) {
  * @param {{ pageSize: 'a4'|'a3', orientation: 'landscape'|'portrait', rowsPerPage?: 'auto'|number }} options
  */
 export async function exportToPDF(reports, options = {}) {
-  const { pageSize = 'a4', orientation = 'landscape', rowsPerPage = 'auto', model = 'All', lot = 'All' } = options
+  const { pageSize = 'a4', orientation = 'landscape', rowsPerPage = 'auto',
+          model = 'All', lot = 'All', inspectionType = 'All' } = options
   const cfgKey = `${pageSize}-${orientation}`
   const cfg = PAGE_CONFIGS[cfgKey] || PAGE_CONFIGS['a4-landscape']
 
@@ -121,12 +122,14 @@ export async function exportToPDF(reports, options = {}) {
   const startY    = titleBarH + 2
 
   // ── Header title text ────────────────────────────────────────────────────
-  // Base label, with the chosen Model/Lot appended in quotes when a specific
-  // model was picked in the export dialog — e.g. Temuan Problem Final
-  // Inspection "Fortuner Ambulance Lot 13". Falls back to the base label
-  // alone when exporting across all models (or a plain selection).
+  // "Temuan Problem {Inspection Type}", with the chosen Model/Lot appended in
+  // quotes when a specific model was picked — e.g. Temuan Problem Final
+  // Inspection "Fortuner Ambulance Lot 13". Falls back to a generic label
+  // when no Inspection Type was chosen (e.g. exporting across all types).
   function buildHeaderTitle() {
-    const base = 'Temuan Problem Final Inspection'
+    const base = (inspectionType && inspectionType !== 'All')
+      ? `Temuan Problem ${inspectionType}`
+      : 'Temuan Problem'
     if (model && model !== 'All') {
       const lotPart = (lot && lot !== 'All') ? ` Lot ${lot}` : ''
       return `${base} "${model}${lotPart}"`
