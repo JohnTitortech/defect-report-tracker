@@ -163,6 +163,12 @@ export async function exportToPDF(reports, options = {}) {
   const allImages = await Promise.all(
     reports.map(r => Promise.all([loadImage(r.positionImageUrl), loadImage(r.detailImageUrl)]))
   )
+  const allCmImages = await Promise.all(
+    reports.map(r => Promise.all([
+      loadImage(r.cmBeforePositionImageUrl),
+      loadImage(r.cmAfterPositionImageUrl),
+    ]))
+  )
 
   // ── Column widths (scale proportionally — same regardless of rowsPerPage) ──
   const usableW = PAGE_W - MARGIN * 2
@@ -181,17 +187,18 @@ export async function exportToPDF(reports, options = {}) {
     supplier:     Math.round(16 * s),
     progress:     Math.round(16 * s),
     verification: Math.round(16 * s),
+    cmImage:      Math.round(imgColW * s),
     analyze:      0,
   }
   const fixedW = COL.no + COL.unit + COL.date + COL.problem + COL.image +
                  COL.qty + COL.design + COL.process + COL.supplier +
-                 COL.progress + COL.verification
+                 COL.progress + COL.verification + COL.cmImage
   COL.analyze = usableW - fixedW
 
   const CI = {
     no: 0, unit: 1, date: 2, problem: 3, image: 4,
     qty: 5, design: 6, process: 7, supplier: 8,
-    analyze: 9, progress: 10, verification: 11,
+    analyze: 9, cmImage: 10, progress: 11, verification: 12,
   }
 
   function fmtDate(r) {
@@ -206,10 +213,10 @@ export async function exportToPDF(reports, options = {}) {
 
   // ── Render one batch of rows (a "chunk") onto the current page ─────────────
   // numberOffset lets "No" keep counting up continuously across chunks/pages.
-  function renderChunk(chunkReports, chunkImages, numberOffset) {
+  function renderChunk(chunkReports, chunkImages, chunkCmImages, numberOffset) {
     const bodyRows = chunkReports.map((r, i) => [
       numberOffset + i + 1, r.unitNo || '—', fmtDate(r), r.problem || '—',
-      '', r.qty ?? 1, '', '', '', '', '', '',
+      '', r.qty ?? 1, '', '', '', '', '', '', '',
     ])
 
     const pad = Math.max(1, 1.5 * scale)
@@ -241,12 +248,16 @@ export async function exportToPDF(reports, options = {}) {
     // Pre-compute the row height each report's Cause/C-M text actually needs,
     // so autoTable reserves enough space instead of clipping the manually-drawn text.
     doc.setFontSize(FS)
-    const rowHeights = chunkReports.map(r => {
+    const rowHeights = chunkReports.map((r, i) => {
       const cause     = (r.cause || '').trim()
       const cmBefore  = (r.countermeasureBefore || r.countermeasure || '').trim()
       const cmAfter   = (r.countermeasureAfter || '').trim()
       const neededH = analyzeContentHeight(cause, cmBefore, cmAfter)
-      return Math.max(minRowH, neededH)
+      // C/M images are stacked (Before on top of After) in a column COL.cmImage
+      // wide — reserve enough height for both thumbnails plus their labels.
+      const [cmBeforeImg, cmAfterImg] = chunkCmImages[i] || []
+      const cmImgNeeded = (cmBeforeImg || cmAfterImg) ? COL.cmImage * 1.3 : 0
+      return Math.max(minRowH, neededH, cmImgNeeded)
     })
 
     autoTable(doc, {
@@ -262,6 +273,7 @@ export async function exportToPDF(reports, options = {}) {
           { content: 'Qty',     rowSpan: 2 },
           { content: 'Responsible', colSpan: 3, styles: { halign: 'center' } },
           { content: 'Analyze/Countermeasure', rowSpan: 2 },
+          { content: 'C/M Images', rowSpan: 2 },
           { content: 'Progress',     rowSpan: 2 },
           { content: 'Verification', rowSpan: 2 },
         ],
@@ -304,6 +316,7 @@ export async function exportToPDF(reports, options = {}) {
         [CI.process]:      { cellWidth: COL.process,       halign: 'center' },
         [CI.supplier]:     { cellWidth: COL.supplier,      halign: 'center' },
         [CI.analyze]:      { cellWidth: COL.analyze },
+        [CI.cmImage]:      { cellWidth: COL.cmImage },
         [CI.progress]:     { cellWidth: COL.progress,      halign: 'center' },
         [CI.verification]: { cellWidth: COL.verification,  halign: 'center' },
       },
@@ -415,6 +428,38 @@ export async function exportToPDF(reports, options = {}) {
           return
         }
 
+        // C/M Images — Before (top) / After (bottom), stacked
+        if (column.index === CI.cmImage) {
+          const [cmBeforeImg, cmAfterImg] = chunkCmImages[i] || []
+          const halfH = (cell.height - pad * 3) / 2
+          const labelFS = Math.max(FS - 1.5, 5)
+          const labelH = labelFS * 0.35278 + 1.2
+          const boxH = Math.max(0, halfH - labelH)
+
+          doc.setFont('helvetica', 'normal')
+          doc.setFontSize(labelFS)
+          doc.setTextColor(80, 80, 80)
+          doc.text('Before', cell.x + pad, cell.y + pad + labelH - 1)
+          if (cmBeforeImg) {
+            drawContained(doc, cmBeforeImg, cell.x + pad, cell.y + pad + labelH, cell.width - pad * 2, boxH)
+          } else {
+            doc.setTextColor(170, 170, 170)
+            doc.text('No image', cell.x + cell.width / 2, cell.y + pad + labelH + boxH / 2, { align: 'center', baseline: 'middle' })
+          }
+
+          const y2 = cell.y + pad + halfH + pad
+          doc.setTextColor(80, 80, 80)
+          doc.text('After', cell.x + pad, y2 + labelH - 1)
+          if (cmAfterImg) {
+            drawContained(doc, cmAfterImg, cell.x + pad, y2 + labelH, cell.width - pad * 2, boxH)
+          } else {
+            doc.setTextColor(170, 170, 170)
+            doc.text('No image', cell.x + cell.width / 2, y2 + labelH + boxH / 2, { align: 'center', baseline: 'middle' })
+          }
+          doc.setTextColor(0, 0, 0)
+          return
+        }
+
         // Progress & Verification (quadrant circle)
         if (column.index === CI.progress || column.index === CI.verification) {
           const field = column.index === CI.progress ? 'progress' : 'verification'
@@ -434,11 +479,11 @@ export async function exportToPDF(reports, options = {}) {
   const perPage = (rowsPerPage === 'auto' || !rowsPerPage) ? null : Math.max(1, Number(rowsPerPage))
 
   if (!perPage) {
-    renderChunk(reports, allImages, 0)
+    renderChunk(reports, allImages, allCmImages, 0)
   } else {
     for (let i = 0; i < reports.length; i += perPage) {
       if (i > 0) doc.addPage()
-      renderChunk(reports.slice(i, i + perPage), allImages.slice(i, i + perPage), i)
+      renderChunk(reports.slice(i, i + perPage), allImages.slice(i, i + perPage), allCmImages.slice(i, i + perPage), i)
     }
   }
 
