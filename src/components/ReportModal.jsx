@@ -7,6 +7,7 @@ import QuadrantProgress from './QuadrantProgress'
 import ImageUploader from './ImageUploader'
 import BarcodeScannerModal from './BarcodeScannerModal'
 import { useModels } from '../hooks/useModels'
+import { useInspectionTypes } from '../hooks/useInspectionTypes'
 import { useLotsByModelName } from '../hooks/useLots'
 import { usePartsByModelName } from '../hooks/useParts'
 import { usePics } from '../hooks/usePics'
@@ -29,6 +30,7 @@ const EMPTY = {
   progress: 0, verification: 0,
   layoutType: null, positionImageUrl: null, detailImageUrl: null,
   model: '',
+  inspectionType: '',
   lot: '',
   part: '',
 }
@@ -40,6 +42,7 @@ export default function ReportModal({ report = null, user, onSave, onClose }) {
     user?.role === 'MASTER'
   
   const { models } = useModels()
+  const { inspectionTypes } = useInspectionTypes()
   const { pics }   = usePics()
   const { picPenjawabList } = usePicPenjawab()
   const isEdit = !!report
@@ -100,6 +103,35 @@ export default function ReportModal({ report = null, user, onSave, onClose }) {
                 required
               />
             </div>
+
+            {/* Inspection Type — QC/MASTER only, radio buttons */}
+            {isQC && (
+              <div>
+                <label className="field-label">Inspection Type</label>
+                <div className="flex flex-wrap gap-2 mt-1">
+                  {inspectionTypes.map(t => {
+                    const active = form.inspectionType === t.name
+                    return (
+                      <button
+                        key={t.id}
+                        type="button"
+                        onClick={() => set('inspectionType', t.name)}
+                        className={`px-4 py-2 rounded-lg text-sm font-medium border transition-all
+                          ${active
+                            ? 'bg-accent text-white border-accent'
+                            : 'bg-steel-50 dark:bg-steel-800 border-steel-200 dark:border-steel-700 text-steel-700 dark:text-steel-300 hover:border-accent/60'
+                          }`}
+                      >
+                        {t.name}
+                      </button>
+                    )
+                  })}
+                  {inspectionTypes.length === 0 && (
+                    <p className="text-xs text-steel-400">Belum ada Inspection Type tersedia.</p>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Model — QC/MASTER only, radio buttons */}
             {isQC && (
