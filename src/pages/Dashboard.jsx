@@ -467,7 +467,7 @@ function ReportRow({ report, rowNum, selected, onToggle, onEdit, onDelete, onVie
 
       {/* Images */}
       <td className="px-3 py-3 align-top">
-        <ImageCell report={report} onView={onViewImage} />
+        <ImageCell layoutType={report.layoutType} positionImageUrl={report.positionImageUrl} detailImageUrl={report.detailImageUrl} onView={onViewImage} />
       </td>
 
       {/* Problem */}
@@ -503,6 +503,11 @@ function ReportRow({ report, rowNum, selected, onToggle, onEdit, onDelete, onVie
                   <div>
                     <p className="text-[10px] font-semibold uppercase tracking-wider text-steel-400 mb-0.5">Countermeasure (Before)</p>
                     <p className="text-xs text-steel-700 dark:text-steel-300 whitespace-pre-line break-words">{cmBefore}</p>
+                    {report.cmBeforePositionImageUrl && (
+                      <div className="mt-1">
+                        <ImageCell layoutType={report.cmBeforeLayoutType} positionImageUrl={report.cmBeforePositionImageUrl} detailImageUrl={report.cmBeforeDetailImageUrl} onView={onViewImage} size="h-8" />
+                      </div>
+                    )}
                   </div>
                 )}
                 {cmBefore && cmAfter && (
@@ -512,6 +517,11 @@ function ReportRow({ report, rowNum, selected, onToggle, onEdit, onDelete, onVie
                   <div>
                     <p className="text-[10px] font-semibold uppercase tracking-wider text-steel-400 mb-0.5">Countermeasure (After)</p>
                     <p className="text-xs text-steel-700 dark:text-steel-300 whitespace-pre-line break-words">{cmAfter}</p>
+                    {report.cmAfterPositionImageUrl && (
+                      <div className="mt-1">
+                        <ImageCell layoutType={report.cmAfterLayoutType} positionImageUrl={report.cmAfterPositionImageUrl} detailImageUrl={report.cmAfterDetailImageUrl} onView={onViewImage} size="h-8" />
+                      </div>
+                    )}
                   </div>
                 )}
                 {!report.cause && !cmBefore && !cmAfter && (
@@ -589,9 +599,7 @@ function ReportRow({ report, rowNum, selected, onToggle, onEdit, onDelete, onVie
   )
 }
 
-function ImageCell({ report, onView }) {
-  const { layoutType, positionImageUrl, detailImageUrl } = report
-
+function ImageCell({ layoutType, positionImageUrl, detailImageUrl, onView, size = 'h-12' }) {
   if (!positionImageUrl) {
     return <span className="text-xs text-steel-300 dark:text-steel-600 italic">No images</span>
   }
@@ -600,8 +608,8 @@ function ImageCell({ report, onView }) {
     return (
       <button onClick={() => onView(positionImageUrl)} className="block group/img">
         <img src={positionImageUrl} alt="defect"
-             className="h-12 aspect-video object-cover rounded border border-steel-200 dark:border-steel-700
-                        group-hover/img:opacity-80 transition-opacity" />
+             className={`${size} aspect-video object-cover rounded border border-steel-200 dark:border-steel-700
+                        group-hover/img:opacity-80 transition-opacity`} />
       </button>
     )
   }
@@ -611,14 +619,14 @@ function ImageCell({ report, onView }) {
     <div className="flex gap-1">
       <button onClick={() => onView(positionImageUrl)} className="group/img" title="Position photo">
         <img src={positionImageUrl} alt="position"
-             className="h-12 w-12 object-cover rounded border border-steel-200 dark:border-steel-700
-                        group-hover/img:opacity-80 transition-opacity" />
+             className={`${size} w-12 object-cover rounded border border-steel-200 dark:border-steel-700
+                        group-hover/img:opacity-80 transition-opacity`} />
       </button>
       {detailImageUrl && (
         <button onClick={() => onView(detailImageUrl)} className="group/img" title="Detail photo">
           <img src={detailImageUrl} alt="detail"
-               className="h-12 w-12 object-cover rounded border border-steel-200 dark:border-steel-700
-                          group-hover/img:opacity-80 transition-opacity" />
+               className={`${size} w-12 object-cover rounded border border-steel-200 dark:border-steel-700
+                          group-hover/img:opacity-80 transition-opacity`} />
         </button>
       )}
     </div>
