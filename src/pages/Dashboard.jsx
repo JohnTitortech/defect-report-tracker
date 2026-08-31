@@ -11,7 +11,7 @@ import { serverTimestamp } from 'firebase/firestore'
 import { useAuth }      from '../hooks/useAuth'
 import { useReports }   from '../hooks/useReports'
 import { useDarkMode }  from '../hooks/useDarkMode'
-import { formatDate, formatDateTime } from '../lib/db'
+import { formatDate, diffDays } from '../lib/db'
 import { exportToPDF }  from '../lib/pdfExport'
 import QuadrantProgress from '../components/QuadrantProgress'
 import ReportModal      from '../components/ReportModal'
@@ -98,11 +98,12 @@ export default function Dashboard() {
 
   // ── Inline progress update ──────────────────────────────────────────────────
 
-  // Records a timestamp the first time progress reaches a given state (1=Plan .. 4=Action).
+  // Records a timestamp the first time a field reaches a given state
+  // (progress: 1=Plan .. 4=Action, verification: 1=OK).
   // Existing entries are never overwritten, so the full history of when each stage
   // was first reached is preserved in Firestore — even though the UI only ever
   // shows the timestamp for the current (most recent) state.
-  const stampProgress = (existingTimestamps, value) => {
+  const stampField = (existingTimestamps, value) => {
     if (!value) return existingTimestamps || {} // state 0 (blank) has no timestamp
     const key = String(value)
     if (existingTimestamps?.[key]) return existingTimestamps
@@ -112,7 +113,10 @@ export default function Dashboard() {
   const updateField = async (report, field, value) => {
     const payload = { [field]: value }
     if (field === 'progress') {
-      payload.progressTimestamps = stampProgress(report.progressTimestamps, value)
+      payload.progressTimestamps = stampField(report.progressTimestamps, value)
+    }
+    if (field === 'verification') {
+      payload.verificationTimestamps = stampField(report.verificationTimestamps, value)
     }
     await update(report.id, payload)
   }
@@ -120,8 +124,9 @@ export default function Dashboard() {
   // ── Save (add or edit) ──────────────────────────────────────────────────────
   const handleSave = async (form) => {
     const payload = { ...form }
-    const existingTimestamps = modal !== 'add' ? modal?.progressTimestamps : null
-    payload.progressTimestamps = stampProgress(existingTimestamps, payload.progress)
+    const existing = modal !== 'add' ? modal : null
+    payload.progressTimestamps = stampField(existing?.progressTimestamps, payload.progress)
+    payload.verificationTimestamps = stampField(existing?.verificationTimestamps, payload.verification)
     if (modal === 'add') await add(payload)
     else await update(modal.id, payload)
   }
@@ -338,8 +343,9 @@ export default function Dashboard() {
                     <Th w="w-24">Created</Th>
                     <Th w="w-24 text-center">Progress</Th>
                     <Th w="w-28">Completed</Th>
+                    <Th w="w-24">Delay (Days)</Th>
                     <Th w="w-24 text-center">Verification</Th>
-                    <Th w="w-28">Updated</Th>
+                    <Th w="w-24">Delay (Days)</Th>
                     <Th w="w-20 text-center">Actions</Th>
                   </tr>
                 </thead>
@@ -524,6 +530,15 @@ function ReportRow({ report, rowNum, selected, onToggle, onEdit, onDelete, onVie
           : ''}
       </td>
 
+      {/* Delay (Days) — Created → Completed progress */}
+      <td className="px-3 py-3 align-top text-xs text-steel-500 dark:text-steel-400 whitespace-nowrap">
+        {(() => {
+          const completedAt = report.progressTimestamps?.[String(report.progress)]
+          const delay = completedAt ? diffDays(report.createdAt, completedAt) : null
+          return delay !== null ? delay : ''
+        })()}
+      </td>
+
       {/* Verification */}
       <td className="px-3 py-3 align-top text-center">
         <div className="flex justify-center">
@@ -531,9 +546,14 @@ function ReportRow({ report, rowNum, selected, onToggle, onEdit, onDelete, onVie
         </div>
       </td>
 
-      {/* Updated */}
+      {/* Delay (Days) — Completed progress → Completed verification */}
       <td className="px-3 py-3 align-top text-xs text-steel-500 dark:text-steel-400 whitespace-nowrap">
-        {formatDateTime(report.updatedAt)}
+        {(() => {
+          const completedAt     = report.progressTimestamps?.[String(report.progress)]
+          const verifiedAt      = report.verificationTimestamps?.[String(report.verification)]
+          const delay = (completedAt && verifiedAt) ? diffDays(completedAt, verifiedAt) : null
+          return delay !== null ? delay : ''
+        })()}
       </td>
 
       {/* Actions */}
