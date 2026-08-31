@@ -31,6 +31,12 @@ export async function createReport(data) {
     layoutType:       data.layoutType       || 'single',
     positionImageUrl: data.positionImageUrl || null,
     detailImageUrl:   data.detailImageUrl   || null,
+    cmBeforeLayoutType:       data.cmBeforeLayoutType       || null,
+    cmBeforePositionImageUrl: data.cmBeforePositionImageUrl || null,
+    cmBeforeDetailImageUrl:   data.cmBeforeDetailImageUrl   || null,
+    cmAfterLayoutType:        data.cmAfterLayoutType        || null,
+    cmAfterPositionImageUrl:  data.cmAfterPositionImageUrl  || null,
+    cmAfterDetailImageUrl:    data.cmAfterDetailImageUrl    || null,
     createdAt:        serverTimestamp(),
     updatedAt:        serverTimestamp(),
   })
