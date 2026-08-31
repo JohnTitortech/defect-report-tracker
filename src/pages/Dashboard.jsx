@@ -530,11 +530,11 @@ function ReportRow({ report, rowNum, selected, onToggle, onEdit, onDelete, onVie
           : ''}
       </td>
 
-      {/* Delay (Days) — Created → Completed progress */}
+      {/* Delay (Days) — Created → Completed progress (falls back to today if not completed yet) */}
       <td className="px-3 py-3 align-top text-xs text-steel-500 dark:text-steel-400 whitespace-nowrap">
         {(() => {
-          const completedAt = report.progressTimestamps?.[String(report.progress)]
-          const delay = completedAt ? diffDays(report.createdAt, completedAt) : null
+          const completedAt = report.progressTimestamps?.[String(report.progress)] || new Date()
+          const delay = diffDays(report.createdAt, completedAt)
           return delay !== null ? delay : ''
         })()}
       </td>
@@ -546,12 +546,13 @@ function ReportRow({ report, rowNum, selected, onToggle, onEdit, onDelete, onVie
         </div>
       </td>
 
-      {/* Delay (Days) — Completed progress → Completed verification */}
+      {/* Delay (Days) — Completed progress → Completed verification (falls back to today if not verified yet) */}
       <td className="px-3 py-3 align-top text-xs text-steel-500 dark:text-steel-400 whitespace-nowrap">
         {(() => {
-          const completedAt     = report.progressTimestamps?.[String(report.progress)]
-          const verifiedAt      = report.verificationTimestamps?.[String(report.verification)]
-          const delay = (completedAt && verifiedAt) ? diffDays(completedAt, verifiedAt) : null
+          const completedAt = report.progressTimestamps?.[String(report.progress)]
+          if (!completedAt) return '' // no completion yet — nothing to measure delay from
+          const verifiedAt = report.verificationTimestamps?.[String(report.verification)] || new Date()
+          const delay = diffDays(completedAt, verifiedAt)
           return delay !== null ? delay : ''
         })()}
       </td>
