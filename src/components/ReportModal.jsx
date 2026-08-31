@@ -26,7 +26,7 @@ const RESPONSIBLE_OPTS = ['Process', 'Design', 'Supplier']
 
 const EMPTY = {
   date: todayStr(),
-  unitNo: '', problem: '', pic: '', picPenjawab: '', qty: 1, responsible: [], cause: '', countermeasure: '',
+  unitNo: '', problem: '', pic: '', picPenjawab: '', qty: 1, responsible: [], cause: '', countermeasureBefore: '', countermeasureAfter: '',
   progress: 0, verification: 0,
   layoutType: null, positionImageUrl: null, detailImageUrl: null,
   model: '',
@@ -46,7 +46,18 @@ export default function ReportModal({ report = null, user, onSave, onClose }) {
   const { pics }   = usePics()
   const { picPenjawabList } = usePicPenjawab()
   const isEdit = !!report
-  const [form, setForm]       = useState(isEdit ? { date: report.date || todayStr(), qty: report.qty ?? 1, responsible: report.responsible || [], ...report } : { ...EMPTY })
+  const [form, setForm]       = useState(isEdit
+    ? {
+        date: report.date || todayStr(),
+        qty: report.qty ?? 1,
+        responsible: report.responsible || [],
+        ...report,
+        // Fall back to the old single `countermeasure` field for reports
+        // saved before the before/after split, so existing data isn't lost.
+        countermeasureBefore: report.countermeasureBefore ?? report.countermeasure ?? '',
+        countermeasureAfter:  report.countermeasureAfter  ?? '',
+      }
+    : { ...EMPTY })
   const { lots } = useLotsByModelName(form.model)
   const { parts } = usePartsByModelName(form.model)
   const [showImages, setShowImages] = useState(false)
@@ -438,15 +449,26 @@ export default function ReportModal({ report = null, user, onSave, onClose }) {
               />
             </div>
 
-            {/* Countermeasure */}
-            <div>
-              <label className="field-label">Countermeasure</label>
-              <textarea
-                className="field-input min-h-[72px] resize-none"
-                placeholder="Describe the corrective action…"
-                value={form.countermeasure}
-                onChange={e => set('countermeasure', e.target.value)}
-              />
+            {/* Countermeasure — Before / After */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="field-label">Countermeasure (Before)</label>
+                <textarea
+                  className="field-input min-h-[72px] resize-none"
+                  placeholder="Condition/action before…"
+                  value={form.countermeasureBefore}
+                  onChange={e => set('countermeasureBefore', e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="field-label">Countermeasure (After)</label>
+                <textarea
+                  className="field-input min-h-[72px] resize-none"
+                  placeholder="Condition/action after…"
+                  value={form.countermeasureAfter}
+                  onChange={e => set('countermeasureAfter', e.target.value)}
+                />
+              </div>
             </div>
 
             {/* Progress & Verification */}
