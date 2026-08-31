@@ -491,18 +491,35 @@ function ReportRow({ report, rowNum, selected, onToggle, onEdit, onDelete, onVie
               <p className="text-xs text-steel-700 dark:text-steel-300 whitespace-pre-line break-words">{report.cause}</p>
             </div>
           )}
-          {report.cause && report.countermeasure && (
-            <div className="border-t border-steel-100 dark:border-steel-800" />
-          )}
-          {report.countermeasure && (
-            <div>
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-steel-400 mb-0.5">Countermeasure</p>
-              <p className="text-xs text-steel-700 dark:text-steel-300 whitespace-pre-line break-words">{report.countermeasure}</p>
-            </div>
-          )}
-          {!report.cause && !report.countermeasure && (
-            <span className="text-xs text-steel-300 dark:text-steel-600 italic">No details yet</span>
-          )}
+          {(() => {
+            const cmBefore = report.countermeasureBefore || report.countermeasure || ''
+            const cmAfter  = report.countermeasureAfter || ''
+            return (
+              <>
+                {report.cause && (cmBefore || cmAfter) && (
+                  <div className="border-t border-steel-100 dark:border-steel-800" />
+                )}
+                {cmBefore && (
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-steel-400 mb-0.5">Countermeasure (Before)</p>
+                    <p className="text-xs text-steel-700 dark:text-steel-300 whitespace-pre-line break-words">{cmBefore}</p>
+                  </div>
+                )}
+                {cmBefore && cmAfter && (
+                  <div className="border-t border-steel-100 dark:border-steel-800" />
+                )}
+                {cmAfter && (
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-steel-400 mb-0.5">Countermeasure (After)</p>
+                    <p className="text-xs text-steel-700 dark:text-steel-300 whitespace-pre-line break-words">{cmAfter}</p>
+                  </div>
+                )}
+                {!report.cause && !cmBefore && !cmAfter && (
+                  <span className="text-xs text-steel-300 dark:text-steel-600 italic">No details yet</span>
+                )}
+              </>
+            )
+          })()}
           {report.picPenjawab && (
             <p className="text-[10px] text-steel-400 pt-0.5">
               PIC Penjawab: <span className="font-medium text-steel-500 dark:text-steel-400">{report.picPenjawab}</span>
