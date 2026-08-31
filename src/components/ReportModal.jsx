@@ -29,6 +29,8 @@ const EMPTY = {
   unitNo: '', problem: '', pic: '', picPenjawab: '', qty: 1, responsible: [], cause: '', countermeasureBefore: '', countermeasureAfter: '',
   progress: 0, verification: 0,
   layoutType: null, positionImageUrl: null, detailImageUrl: null,
+  cmBeforeLayoutType: null, cmBeforePositionImageUrl: null, cmBeforeDetailImageUrl: null,
+  cmAfterLayoutType: null, cmAfterPositionImageUrl: null, cmAfterDetailImageUrl: null,
   model: '',
   inspectionType: '',
   lot: '',
@@ -60,7 +62,7 @@ export default function ReportModal({ report = null, user, onSave, onClose }) {
     : { ...EMPTY })
   const { lots } = useLotsByModelName(form.model)
   const { parts } = usePartsByModelName(form.model)
-  const [showImages, setShowImages] = useState(false)
+  const [imageTarget, setImageTarget] = useState(null) // null | 'problem' | 'cmBefore' | 'cmAfter'
   const [saving, setSaving]   = useState(false)
   const [showScanner, setShowScanner] = useState(false)
 
@@ -78,9 +80,23 @@ export default function ReportModal({ report = null, user, onSave, onClose }) {
     onClose()
   }
 
+  // Field-name prefixes per image target, so the same ImageUploader modal
+  // can be reused for Problem, Countermeasure Before, and Countermeasure After.
+  const IMAGE_KEYS = {
+    problem:  { layout: 'layoutType',           position: 'positionImageUrl',           detail: 'detailImageUrl' },
+    cmBefore: { layout: 'cmBeforeLayoutType',    position: 'cmBeforePositionImageUrl',    detail: 'cmBeforeDetailImageUrl' },
+    cmAfter:  { layout: 'cmAfterLayoutType',     position: 'cmAfterPositionImageUrl',     detail: 'cmAfterDetailImageUrl' },
+  }
+
   const handleImageSave = (imgData) => {
-    setForm(f => ({ ...f, ...imgData }))
-    setShowImages(false)
+    const keys = IMAGE_KEYS[imageTarget]
+    setForm(f => ({
+      ...f,
+      [keys.layout]:   imgData.layoutType,
+      [keys.position]: imgData.positionImageUrl,
+      [keys.detail]:   imgData.detailImageUrl,
+    }))
+    setImageTarget(null)
   }
 
   return (
@@ -284,7 +300,7 @@ export default function ReportModal({ report = null, user, onSave, onClose }) {
                   disabled={!isQC}
                   onClick={() => {
                     if (isQC) {
-                      setShowImages(true)
+                      setImageTarget('problem')
                     }
                   }}
                   className="btn-ghost flex items-center gap-2"
@@ -459,6 +475,32 @@ export default function ReportModal({ report = null, user, onSave, onClose }) {
                   value={form.countermeasureBefore}
                   onChange={e => set('countermeasureBefore', e.target.value)}
                 />
+                <div className="flex items-center gap-3 flex-wrap mt-2">
+                  <button
+                    type="button"
+                    disabled={!isQC}
+                    onClick={() => { if (isQC) setImageTarget('cmBefore') }}
+                    className="btn-ghost flex items-center gap-2"
+                  >
+                    <Camera className="w-4 h-4" />
+                    {form.cmBeforePositionImageUrl ? 'Change Images' : 'Add Images'}
+                  </button>
+                  {form.cmBeforePositionImageUrl ? (
+                    <div className="flex gap-2">
+                      <img src={form.cmBeforePositionImageUrl} alt="countermeasure before"
+                           className={`object-cover rounded border border-steel-200 dark:border-steel-700
+                             ${form.cmBeforeLayoutType === 'single' ? 'h-10 aspect-video' : 'h-10 w-10'}`} />
+                      {form.cmBeforeLayoutType === 'dual' && form.cmBeforeDetailImageUrl && (
+                        <img src={form.cmBeforeDetailImageUrl} alt="countermeasure before detail"
+                             className="h-10 w-10 object-cover rounded border border-steel-200 dark:border-steel-700" />
+                      )}
+                    </div>
+                  ) : (
+                    <span className="text-xs text-steel-400 flex items-center gap-1">
+                      <ImageIcon className="w-3 h-3" /> No images yet
+                    </span>
+                  )}
+                </div>
               </div>
               <div>
                 <label className="field-label">Countermeasure (After)</label>
@@ -468,6 +510,32 @@ export default function ReportModal({ report = null, user, onSave, onClose }) {
                   value={form.countermeasureAfter}
                   onChange={e => set('countermeasureAfter', e.target.value)}
                 />
+                <div className="flex items-center gap-3 flex-wrap mt-2">
+                  <button
+                    type="button"
+                    disabled={!isQC}
+                    onClick={() => { if (isQC) setImageTarget('cmAfter') }}
+                    className="btn-ghost flex items-center gap-2"
+                  >
+                    <Camera className="w-4 h-4" />
+                    {form.cmAfterPositionImageUrl ? 'Change Images' : 'Add Images'}
+                  </button>
+                  {form.cmAfterPositionImageUrl ? (
+                    <div className="flex gap-2">
+                      <img src={form.cmAfterPositionImageUrl} alt="countermeasure after"
+                           className={`object-cover rounded border border-steel-200 dark:border-steel-700
+                             ${form.cmAfterLayoutType === 'single' ? 'h-10 aspect-video' : 'h-10 w-10'}`} />
+                      {form.cmAfterLayoutType === 'dual' && form.cmAfterDetailImageUrl && (
+                        <img src={form.cmAfterDetailImageUrl} alt="countermeasure after detail"
+                             className="h-10 w-10 object-cover rounded border border-steel-200 dark:border-steel-700" />
+                      )}
+                    </div>
+                  ) : (
+                    <span className="text-xs text-steel-400 flex items-center gap-1">
+                      <ImageIcon className="w-3 h-3" /> No images yet
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -500,11 +568,15 @@ export default function ReportModal({ report = null, user, onSave, onClose }) {
         </div>
       </div>
 
-      {showImages && (
+      {imageTarget && (
         <ImageUploader
-          initial={{ layoutType: form.layoutType, positionImageUrl: form.positionImageUrl, detailImageUrl: form.detailImageUrl }}
+          initial={{
+            layoutType:       form[IMAGE_KEYS[imageTarget].layout],
+            positionImageUrl: form[IMAGE_KEYS[imageTarget].position],
+            detailImageUrl:   form[IMAGE_KEYS[imageTarget].detail],
+          }}
           onSave={handleImageSave}
-          onClose={() => setShowImages(false)}
+          onClose={() => setImageTarget(null)}
         />
       )}
     </>
