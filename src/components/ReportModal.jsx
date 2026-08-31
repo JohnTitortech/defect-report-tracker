@@ -191,9 +191,9 @@ export default function ReportModal({ report = null, user, onSave, onClose }) {
               </div>
             )}
 
-            {/* Unit Number */}
+            {/* Frame Number */}
             <div>
-              <label className="field-label">Unit Number *</label>
+              <label className="field-label">Frame Number *</label>
               <div className="flex gap-2">
                 <input
                   type="text"
@@ -209,7 +209,7 @@ export default function ReportModal({ report = null, user, onSave, onClose }) {
                   onClick={() => setShowScanner(true)}
                   className="shrink-0 px-3 rounded-lg border border-steel-200 dark:border-steel-700 hover:bg-steel-50 dark:hover:bg-steel-800 flex items-center justify-center"
                   title="Scan barcode dengan kamera"
-                  aria-label="Scan barcode Unit Number dengan kamera"
+                  aria-label="Scan barcode Frame Number dengan kamera"
                 >
                   <Camera className="w-4 h-4 text-accent" />
                 </button>
