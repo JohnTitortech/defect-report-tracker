@@ -129,7 +129,7 @@ export async function exportToPDF(reports, options = {}) {
     const base = 'Temuan Problem Final Inspection'
     if (model && model !== 'All') {
       const lotPart = (lot && lot !== 'All') ? ` Lot ${lot}` : ''
-      return `${base} ${model}${lotPart}`
+      return `${base} "${model}${lotPart}"`
     }
     return base
   }
@@ -148,12 +148,12 @@ export async function exportToPDF(reports, options = {}) {
 
   // ── Title header (drawn once per page) ─────────────────────────────────────
   function drawTitleBar() {
-    doc.setFillColor(28, 28, 28)
+    doc.setFillColor(245, 158, 11) // amber/orange-yellow
     doc.rect(0, 0, PAGE_W, titleBarH, 'F')
-    doc.setTextColor(255, 255, 255)
+    doc.setTextColor(28, 28, 28)
     doc.setFont('helvetica', 'bold')
     doc.setFontSize(headerFontSize)
-    doc.text(headerTitle, MARGIN, titleBarH * 0.65)
+    doc.text(headerTitle, PAGE_W / 2, titleBarH * 0.65, { align: 'center' })
   }
 
   // ── Pre-load images ──────────────────────────────────────────────────────
