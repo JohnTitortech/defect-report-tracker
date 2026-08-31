@@ -77,3 +77,13 @@ export function formatDateTime(ts) {
     hour: '2-digit', minute: '2-digit',
   })
 }
+
+// Whole-day difference between two timestamps (fromTs -> toTs), rounded down.
+// Returns null if either timestamp is missing, so the caller can render a blank cell.
+export function diffDays(fromTs, toTs) {
+  const from = tsToDate(fromTs)
+  const to   = tsToDate(toTs)
+  if (!from || !to) return null
+  const ms = to.getTime() - from.getTime()
+  return Math.floor(ms / (1000 * 60 * 60 * 24))
+}
