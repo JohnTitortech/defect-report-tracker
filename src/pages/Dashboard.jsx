@@ -168,7 +168,7 @@ export default function Dashboard() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-steel-400" />
             <input
               type="text"
-              placeholder="Search unit number…"
+              placeholder="Search frame number…"
               value={search}
               onChange={e => setSearch(e.target.value)}
               className="w-full pl-9 pr-3 py-2 text-sm bg-steel-100 dark:bg-steel-800 border border-steel-200 dark:border-steel-700
