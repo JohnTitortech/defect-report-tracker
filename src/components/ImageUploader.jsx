@@ -6,7 +6,7 @@
 import React, { useState } from 'react'
 import { X, ImageIcon, Images, AlertCircle } from 'lucide-react'
 import ImageCropper from './ImageCropper'
-import { uploadBlob } from '../lib/cloudinary'
+import { uploadBlob, deleteByUrl } from '../lib/cloudinary'
 import toast from 'react-hot-toast'
 
 export default function ImageUploader({ initial = {}, onSave, onClose }) {
@@ -18,6 +18,11 @@ export default function ImageUploader({ initial = {}, onSave, onClose }) {
   const [uploading,  setUploading] = useState(false)
   const [step,       setStep]      = useState(layoutType ? 'crop' : 'layout')
 
+  // Track images explicitly removed by the user (X button) so we know to
+  // delete them from Cloudinary and NOT block Save just because a slot is empty.
+  const [posRemoved, setPosRemoved] = useState(false)
+  const [detRemoved, setDetRemoved] = useState(false)
+
   // Which crop slot is active ('position' | 'detail' | null)
   const [activeSlot, setActiveSlot] = useState(null)
 
@@ -26,6 +31,7 @@ export default function ImageUploader({ initial = {}, onSave, onClose }) {
     if (type !== layoutType) {
       setPosBlob(null); setPosPreview(null)
       setDetBlob(null); setDetPreview(null)
+      setPosRemoved(false); setDetRemoved(false)
     }
     setLayout(type)
     setStep('crop')
@@ -34,33 +40,77 @@ export default function ImageUploader({ initial = {}, onSave, onClose }) {
 
   const handleCropped = (blob, dataUrl, slot) => {
     if (slot === 'position') {
-      setPosBlob(blob); setPosPreview(dataUrl)
+      setPosBlob(blob); setPosPreview(dataUrl); setPosRemoved(false)
       if (layoutType === 'dual' && !detPreview) setActiveSlot('detail')
       else setActiveSlot(null)
     } else {
-      setDetBlob(blob); setDetPreview(dataUrl)
+      setDetBlob(blob); setDetPreview(dataUrl); setDetRemoved(false)
       setActiveSlot(null)
     }
   }
 
+  const removePosition = () => {
+    setPosBlob(null); setPosPreview(null)
+    if (initial.positionImageUrl) setPosRemoved(true)
+    setActiveSlot('position')
+  }
+
+  const removeDetail = () => {
+    setDetBlob(null); setDetPreview(null)
+    if (initial.detailImageUrl) setDetRemoved(true)
+    setActiveSlot('detail')
+  }
+
+  // Allow saving an explicitly-removed (now empty) state — the old rule
+  // required a preview to always be present, which made "delete photo"
+  // impossible to save. Single layout with the photo removed = clear it.
+  // Dual layout: position is required, but detail can be cleared.
   const canSave = layoutType === 'single'
-    ? !!posPreview
-    : !!posPreview && !!detPreview
+    ? (!!posPreview || posRemoved)
+    : (!!posPreview || posRemoved) && (!!detPreview || detRemoved || layoutType !== 'dual')
 
   const handleSave = async () => {
     if (!canSave) return
     setUploading(true)
-    const tid = toast.loading('Mengupload gambar ke Cloudinary…')
+    const tid = toast.loading(
+      (posBlob || detBlob) ? 'Mengupload gambar ke Cloudinary…' : 'Menyimpan perubahan…'
+    )
     try {
       let posUrl = initial.positionImageUrl || null
       let detUrl = initial.detailImageUrl   || null
 
-      // Upload ke Cloudinary — folder "defect-reports" sebagai subfolder
+      // Upload gambar baru ke Cloudinary
       if (posBlob) posUrl = await uploadBlob(posBlob, 'defect-reports')
       if (detBlob) detUrl = await uploadBlob(detBlob, 'defect-reports')
 
+      // Gambar lama yang diganti atau dihapus eksplisit → hapus dari Cloudinary.
+      // Kalau backend delete belum di-setup, ini akan gagal secara terlihat
+      // (toast warning) tapi TIDAK menggagalkan penyimpanan laporan —
+      // field URL di Firestore tetap di-clear/diganti supaya web tidak
+      // menampilkan gambar yang sudah tidak relevan lagi.
+      const cleanupTargets = []
+      if (posBlob && initial.positionImageUrl) cleanupTargets.push(initial.positionImageUrl)
+      if (posRemoved && initial.positionImageUrl) cleanupTargets.push(initial.positionImageUrl)
+      if (detBlob && initial.detailImageUrl) cleanupTargets.push(initial.detailImageUrl)
+      if (detRemoved && initial.detailImageUrl) cleanupTargets.push(initial.detailImageUrl)
+
+      if (posRemoved) posUrl = null
+      if (detRemoved || layoutType !== 'dual') detUrl = layoutType === 'dual' ? detUrl : null
+      if (detRemoved) detUrl = null
+
       toast.success('Gambar berhasil disimpan', { id: tid })
       onSave({ layoutType, positionImageUrl: posUrl, detailImageUrl: layoutType === 'dual' ? detUrl : null })
+
+      // Fire-and-report cleanup after saving, so a Cloudinary delete failure
+      // never blocks the report from being saved.
+      for (const url of cleanupTargets) {
+        try {
+          await deleteByUrl(url)
+        } catch (cleanupErr) {
+          console.warn('Cloudinary cleanup gagal:', cleanupErr)
+          toast.error(cleanupErr.message || 'Gambar lama gagal dihapus dari Cloudinary', { duration: 6000 })
+        }
+      }
     } catch (err) {
       toast.error(err.message || 'Upload gagal', { id: tid })
       console.error(err)
@@ -163,7 +213,7 @@ export default function ImageUploader({ initial = {}, onSave, onClose }) {
                       {layoutType === 'single' ? 'Photo' : 'Position'}
                     </span>
                     <button
-                      onClick={() => { setPosBlob(null); setPosPreview(null); setActiveSlot('position') }}
+                      onClick={removePosition}
                       className="absolute top-1 right-1 bg-black/60 rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
                     >
                       <X className="w-3 h-3 text-white" />
@@ -176,7 +226,7 @@ export default function ImageUploader({ initial = {}, onSave, onClose }) {
                          className="h-20 w-20 object-cover rounded-lg border-2 border-steel-200 dark:border-steel-700" />
                     <span className="absolute bottom-1 left-1 bg-black/60 text-white text-[9px] px-1 rounded">Detail</span>
                     <button
-                      onClick={() => { setDetBlob(null); setDetPreview(null); setActiveSlot('detail') }}
+                      onClick={removeDetail}
                       className="absolute top-1 right-1 bg-black/60 rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
                     >
                       <X className="w-3 h-3 text-white" />
